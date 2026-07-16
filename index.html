@@ -78,7 +78,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 .stamp.FAIL{color:var(--red);}
 .overall-note{font-family:'Caveat',cursive;font-size:1.5rem;color:var(--red);flex:1;min-width:220px;}
 
-.spec-row{position:relative;border-bottom:1px solid var(--line);padding:14px 4px 18px;}
+.spec-row{position:relative;border-bottom:1px solid var(--line);padding:9px 4px 11px;}
 .spec-row .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
 .spec-row .label{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);}
 .spec-row .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.95rem;}
@@ -87,14 +87,17 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 .badge.weak{background:var(--amber-dim);color:var(--amber);}
 .badge.bottleneck{background:var(--red-dim);color:var(--red);}
 .badge.overkill{background:var(--amber-dim);color:var(--amber);}
-.roast-note{font-family:'Caveat',cursive;font-size:1.3rem;color:var(--red);margin-top:6px;line-height:1.15;transform:rotate(-0.6deg);}
-.why{font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--ink);opacity:0.85;margin-top:4px;}
+.roast-note{font-family:'Caveat',cursive;font-size:1.15rem;color:var(--red);margin-top:3px;line-height:1.1;transform:rotate(-0.6deg);}
+.why{font-family:'Inter',sans-serif;font-size:0.8rem;color:var(--ink);opacity:0.85;margin-top:3px;}
+.results.compact .why, #results.compact .why{display:none;}
+#results.compact .spec-row{padding:6px 4px 8px;}
+#results.compact .section-title{margin:16px 0 6px;}
 
-.section-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.1rem;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink);}
+.section-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.05rem;margin:20px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--ink);}
 
-.bottleneck-box{background:var(--red-dim);border:1.5px solid var(--red);border-radius:8px;padding:14px 16px;font-size:0.9rem;line-height:1.5;}
+.bottleneck-box{background:var(--red-dim);border:1.5px solid var(--red);border-radius:8px;padding:11px 14px;font-size:0.85rem;line-height:1.4;}
 
-.better-row{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;align-items:start;padding:10px 0;border-bottom:1px dashed var(--line);font-size:0.85rem;}
+.better-row{display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;align-items:start;padding:7px 0;border-bottom:1px dashed var(--line);font-size:0.82rem;}
 .better-row .comp{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:0.72rem;text-transform:uppercase;color:var(--muted);}
 .better-row .cur{color:var(--muted);text-decoration:line-through;}
 .better-row .sug{color:var(--green);font-weight:600;}
@@ -288,6 +291,16 @@ async function loadWorkerUrl(){
 }
 loadWorkerUrl();
 
+async function loadCompactPref(){
+  try{
+    const res = await window.storage.get('config:compactView');
+    if(res && res.value === '1'){
+      document.getElementById('results').dataset.compactPref = '1';
+    }
+  }catch(e){ /* not set yet */ }
+}
+loadCompactPref();
+
 let currentLang = 'taglish';
 document.querySelectorAll('.lang-toggle button').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -439,11 +452,13 @@ function escapeHtml(str){
 function renderResults(r, input){
   const results = document.getElementById('results');
   const verdict = r.overall_verdict || 'REWORK';
+  const compactWasOn = results.dataset.compactPref === '1';
 
   let html = `<div class="stamp-row">
     <div class="stamp ${escapeHtml(verdict)}">${verdict === 'PASS' ? '✓ READY TO SHIP' : verdict === 'FAIL' ? '✗ MAJOR REWORK' : '⚠ NEEDS REWORK'}</div>
     <div class="overall-note">"${escapeHtml(r.overall_note||'')}"</div>
-  </div>`;
+  </div>
+  <div style="margin-bottom:10px;"><button class="ghost-btn" id="compactToggleBtn" style="font-size:0.68rem;padding:5px 10px;">Compact View</button></div>`;
 
   html += `<div class="section-title">The Spec Sheet</div>`;
   (r.components||[]).forEach(c=>{
@@ -487,8 +502,15 @@ function renderResults(r, input){
   results.style.display = 'block';
   results.scrollIntoView({behavior:'smooth', block:'start'});
 
-  document.getElementById('copyBtn').addEventListener('click', ()=>{
-    const lines = [];
+  const compactBtn = document.getElementById('compactToggleBtn');
+  if(compactWasOn){ results.classList.add('compact'); compactBtn.textContent = 'Full Details'; }
+  compactBtn.addEventListener('click', async ()=>{
+    const isCompact = results.classList.toggle('compact');
+    compactBtn.textContent = isCompact ? 'Full Details' : 'Compact View';
+    try{ await window.storage.set('config:compactView', isCompact ? '1' : '0'); }catch(e){}
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', ()=>{    const lines = [];
     lines.push(input.name.toUpperCase()+' — '+verdict);
     lines.push(r.overall_note);
     lines.push('');
