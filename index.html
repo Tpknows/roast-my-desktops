@@ -413,7 +413,7 @@ Respond with ONLY valid JSON (no markdown fences, no preamble), matching exactly
   "script_hook": "one punchy short-form video hook line summarizing the verdict, camera-ready for TikTok/Reels"
 }
 
-Include an entry in "components" for every component actually provided (skip ones not given). Include entries in "better_build" only for components that actually need upgrading — if a component is already good for the use case, leave it out of better_build. If overall_verdict is PASS, better_build can be a short list of minor polish suggestions or empty array.`;
+Keep every "why" and "reason" field to 1 short sentence, max ~20 words — this keeps the review scannable. Include an entry in "components" for every component actually provided (skip ones not given). Include entries in "better_build" only for components that actually need upgrading — if a component is already good for the use case, leave it out of better_build. If overall_verdict is PASS, better_build can be a short list of minor polish suggestions or empty array.`;
 
   const userPrompt = `Build name: ${input.name}\nTarget use case: ${input.useCase || 'not specified — infer the most likely intended use from the specs'}\n\nSpecs:\n${input.specText}`;
 
