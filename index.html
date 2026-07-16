@@ -72,11 +72,11 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 /* results */
 #results{margin-top:30px;display:none;}
 .stamp-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
-.stamp{font-family:'Archivo',sans-serif;font-weight:900;font-size:1.3rem;padding:10px 22px;border:4px solid currentColor;border-radius:8px;transform:rotate(-3deg);letter-spacing:0.03em;display:inline-block;}
+.stamp{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.05rem;padding:8px 18px;border:2.5px solid currentColor;border-radius:6px;letter-spacing:0.03em;display:inline-block;}
 .stamp.PASS{color:var(--green);}
 .stamp.REWORK{color:var(--amber);}
 .stamp.FAIL{color:var(--red);}
-.overall-note{font-family:'Caveat',cursive;font-size:1.5rem;color:var(--red);flex:1;min-width:220px;}
+.overall-note{font-family:'Inter',sans-serif;font-weight:500;font-style:italic;font-size:1.05rem;color:var(--red);flex:1;min-width:220px;line-height:1.4;}
 
 .spec-row{position:relative;border-bottom:1px solid var(--line);padding:9px 4px 11px;}
 .spec-row .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
@@ -87,8 +87,8 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 .badge.weak{background:var(--amber-dim);color:var(--amber);}
 .badge.bottleneck{background:var(--red-dim);color:var(--red);}
 .badge.overkill{background:var(--amber-dim);color:var(--amber);}
-.roast-note{font-family:'Caveat',cursive;font-size:1.15rem;color:var(--red);margin-top:3px;line-height:1.1;transform:rotate(-0.6deg);}
-.why{font-family:'Inter',sans-serif;font-size:0.8rem;color:var(--ink);opacity:0.85;margin-top:3px;}
+.roast-note{font-family:'Inter',sans-serif;font-weight:600;font-style:italic;font-size:0.88rem;color:var(--red);margin-top:4px;line-height:1.3;}
+.why{font-family:'Inter',sans-serif;font-size:0.8rem;color:var(--ink);opacity:0.8;margin-top:3px;}
 .results.compact .why, #results.compact .why{display:none;}
 #results.compact .spec-row{padding:6px 4px 8px;}
 #results.compact .section-title{margin:16px 0 6px;}
@@ -104,7 +104,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 .better-row .why{grid-column:1/-1;color:var(--ink);opacity:0.8;font-size:0.82rem;}
 @media(max-width:640px){.better-row{grid-template-columns:1fr;}}
 
-.hook-box{background:var(--ink);color:var(--paper);border-radius:8px;padding:16px 18px;font-family:'Caveat',cursive;font-size:1.4rem;line-height:1.3;margin-top:16px;}
+.hook-box{background:var(--ink);color:var(--paper);border-radius:8px;padding:16px 18px;font-family:'Inter',sans-serif;font-weight:500;font-style:italic;font-size:1rem;line-height:1.45;margin-top:16px;}
 
 .action-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
 .ghost-btn{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;font-weight:600;padding:9px 14px;background:transparent;border:1.5px solid var(--ink);border-radius:6px;cursor:pointer;color:var(--ink);}
@@ -115,6 +115,22 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 @keyframes spin{to{transform:rotate(360deg);}}
 
 .error{display:none;background:var(--red-dim);color:var(--red);border:1.5px solid var(--red);border-radius:6px;padding:10px 14px;font-size:0.82rem;margin-top:12px;}
+
+/* batch */
+.batch-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.batch-item{border:1.5px solid var(--ink);border-radius:8px;background:var(--paper-dark);overflow:hidden;}
+.batch-item summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:0.82rem;flex-wrap:wrap;}
+.batch-item summary::-webkit-details-marker{display:none;}
+.batch-item summary::before{content:'▸';font-family:sans-serif;color:var(--muted);}
+.batch-item[open] summary::before{content:'▾';}
+.batch-item .batch-note{color:var(--muted);font-family:'Inter',sans-serif;font-style:italic;font-weight:normal;}
+.batch-item .batch-body{padding:4px 16px 16px;background:var(--paper);}
+.batch-item.batch-error{border-color:var(--red);}
+.stamp-mini{font-weight:800;padding:3px 9px;border-radius:4px;font-size:0.65rem;font-family:'IBM Plex Mono',monospace;letter-spacing:0.03em;}
+.stamp-mini.PASS{background:var(--green-dim);color:var(--green);}
+.stamp-mini.REWORK{background:var(--amber-dim);color:var(--amber);}
+.stamp-mini.FAIL{background:var(--red-dim);color:var(--red);}
+.batch-preview{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--muted);margin-top:8px;line-height:1.6;}
 
 /* history */
 .history-wrap{margin-top:40px;}
@@ -213,6 +229,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
     </div>
     <div id="fileStatus"></div>
+    <div id="batchPreview" class="batch-preview" style="display:none;"></div>
     <div class="grid" style="margin-top:14px;">
       <div class="field"><label>Build / Campaign Name</label><input id="u_name" placeholder="e.g. July Promo Desktop"></div>
       <div class="field"><label>Target Use Case</label>
@@ -260,6 +277,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    updateRoastButtonLabel();
   });
 });
 
@@ -310,28 +328,107 @@ document.querySelectorAll('.lang-toggle button').forEach(btn=>{
   });
 });
 
-// File upload
+// File upload — supports single build or batch (one row per build)
 let uploadedSpecText = '';
+let batchBuilds = null; // array of {name, useCase, specText} when batch detected
+
+const FIELD_SYNONYMS = {
+  name: ['name','build','buildname','campaign','model','sku'],
+  usecase: ['usecase','target','segment','category'],
+  cpu: ['cpu','processor'],
+  mobo: ['motherboard','mobo','mainboard','board'],
+  ram: ['ram','memory'],
+  gpu: ['gpu','graphics','graphicscard','vga','videocard'],
+  storage: ['storage','ssd','hdd','drive','disk'],
+  psu: ['psu','powersupply','power'],
+  case: ['case','chassis','casing'],
+  cooler: ['cooler','cpucooler','fan','cooling'],
+};
+const FIELD_LABELS = { cpu:'CPU', mobo:'Motherboard', ram:'RAM', gpu:'GPU', storage:'Storage', psu:'PSU', case:'Case / Airflow', cooler:'CPU Cooler' };
+
+function normalizeKey(k){ return String(k).toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+function mapHeaders(headers){
+  const map = {};
+  headers.forEach(h=>{
+    const nk = normalizeKey(h);
+    for(const [field, syns] of Object.entries(FIELD_SYNONYMS)){
+      if(!map[field] && syns.some(s=>normalizeKey(s)===nk)){
+        map[field] = h;
+      }
+    }
+  });
+  return map;
+}
+
+function rowToBuild(row, headerMap, allHeaders, fallbackName){
+  const get = f => headerMap[f] ? String(row[headerMap[f]] ?? '').trim() : '';
+  const name = get('name') || fallbackName;
+  const useCase = get('usecase');
+  const specParts = [];
+  Object.keys(FIELD_LABELS).forEach(f=>{
+    const v = get(f);
+    if(v) specParts.push(FIELD_LABELS[f] + ': ' + v);
+  });
+  const mappedHeaders = new Set(Object.values(headerMap));
+  allHeaders.forEach(h=>{
+    if(!mappedHeaders.has(h)){
+      const v = String(row[h] ?? '').trim();
+      if(v) specParts.push(h + ': ' + v);
+    }
+  });
+  return { name, useCase, specText: specParts.join('\n') };
+}
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 dropZone.addEventListener('click',()=>fileInput.click());
 fileInput.addEventListener('change', async (e)=>{
   const file = e.target.files[0];
   if(!file) return;
+  batchBuilds = null;
+  document.getElementById('batchPreview').style.display = 'none';
   document.getElementById('fileStatus').textContent = 'Reading ' + file.name + '...';
   try{
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data);
     const sheetName = wb.SheetNames[0];
     const sheet = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
-    uploadedSpecText = rows.map(r=>r.join(' | ')).filter(r=>r.replace(/\|/g,'').trim()).join('\n');
-    document.getElementById('fileStatus').textContent = '✓ Loaded "'+sheetName+'" — '+rows.length+' rows';
+    const objRows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+
+    if(objRows.length > 1){
+      // Batch mode — one row per build
+      const headers = Object.keys(objRows[0]);
+      const headerMap = mapHeaders(headers);
+      batchBuilds = objRows.map((row,i)=> rowToBuild(row, headerMap, headers, 'Build ' + (i+1)));
+      document.getElementById('fileStatus').textContent = '✓ Loaded "'+sheetName+'" — detected '+batchBuilds.length+' builds (one per row)';
+      const preview = document.getElementById('batchPreview');
+      preview.style.display = 'block';
+      preview.innerHTML = 'Builds detected:<br>' + batchBuilds.map((b,i)=> (i+1)+'. '+escapeHtml(b.name)).join('<br>');
+      uploadedSpecText = '';
+    } else {
+      // Single build — fall back to a simple line dump of the raw rows
+      const rawRows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+      uploadedSpecText = rawRows.map(r=>r.join(' | ')).filter(r=>r.replace(/\|/g,'').trim()).join('\n');
+      document.getElementById('fileStatus').textContent = '✓ Loaded "'+sheetName+'" — single build detected';
+    }
   }catch(err){
     document.getElementById('fileStatus').textContent = '✗ Could not read file: '+err.message;
     uploadedSpecText = '';
+    batchBuilds = null;
   }
+  updateRoastButtonLabel();
 });
+
+function updateRoastButtonLabel(){
+  const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+  const btn = document.getElementById('roastBtn');
+  if(activeTab === 'upload' && batchBuilds && batchBuilds.length > 1){
+    btn.textContent = '🔥 Roast All ' + batchBuilds.length + ' Builds';
+  } else {
+    btn.textContent = '🔥 Roast This Build';
+  }
+}
 
 function buildSpecTextFromManual(){
   const get = id => document.getElementById(id).value.trim();
@@ -363,32 +460,7 @@ function getActiveInput(){
 
 const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','Grabbing the red pen...','Sizing up the PSU headroom...'];
 
-async function roastBuild(){
-  const input = getActiveInput();
-  const errorBox = document.getElementById('errorBox');
-  errorBox.style.display = 'none';
-  if(!input.specText){
-    errorBox.textContent = 'Wala pang specs na na-enter. Fill in the fields, paste, or upload a file muna.';
-    errorBox.style.display = 'block';
-    return;
-  }
-  if(!workerUrl){
-    errorBox.textContent = 'Wala pang Worker URL na naka-set. Click ⚙ Settings sa taas, i-paste yung Cloudflare Worker URL mo, tapos Save.';
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  const btn = document.getElementById('roastBtn');
-  btn.disabled = true;
-  const loadingRow = document.getElementById('loadingRow');
-  loadingRow.style.display = 'flex';
-  let msgIdx = 0;
-  document.getElementById('loadingText').textContent = loadingMsgs[0];
-  const msgInterval = setInterval(()=>{
-    msgIdx = (msgIdx+1) % loadingMsgs.length;
-    document.getElementById('loadingText').textContent = loadingMsgs[msgIdx];
-  }, 1400);
-
+function buildPrompts(input){
   const langInstruction = currentLang==='taglish'
     ? 'Write all roast lines, the overall note, and the hook in natural Taglish (Filipino-English code-switching), the way a witty EasyPC content creator would talk to a Filipino TikTok audience. Keep "why" explanations in clear English or light Taglish, whichever reads more naturally.'
     : 'Write all text in English, witty and punchy, suitable for a tech content creator.';
@@ -417,20 +489,69 @@ Keep every "why" and "reason" field to 1 short sentence, max ~20 words — this 
 
   const userPrompt = `Build name: ${input.name}\nTarget use case: ${input.useCase || 'not specified — infer the most likely intended use from the specs'}\n\nSpecs:\n${input.specText}`;
 
-  try{
-    const response = await fetch(workerUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ systemPrompt, userPrompt })
-    });
-    if(!response.ok){
-      const errText = await response.text().catch(()=> '');
-      throw new Error('Worker returned ' + response.status + (errText ? ': ' + errText.slice(0,150) : ''));
+  return { systemPrompt, userPrompt };
+}
+
+function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
+
+async function fetchRoast(input, attempt=1){
+  const { systemPrompt, userPrompt } = buildPrompts(input);
+  const response = await fetch(workerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ systemPrompt, userPrompt })
+  });
+  if(!response.ok){
+    const errText = await response.text().catch(()=> '');
+    if(response.status === 429 && attempt < 2){
+      await sleep(8000);
+      return fetchRoast(input, attempt+1);
     }
-    const data = await response.json();
-    if(!data.text) throw new Error('No response text from Worker');
-    let clean = data.text.trim().replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
-    const parsed = JSON.parse(clean);
+    throw new Error('Worker returned ' + response.status + (errText ? ': ' + errText.slice(0,150) : ''));
+  }
+  const data = await response.json();
+  if(!data.text) throw new Error('No response text from Worker');
+  let clean = data.text.trim().replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
+  return JSON.parse(clean);
+}
+
+async function roastBuild(){
+  const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+  if(activeTab === 'upload' && batchBuilds && batchBuilds.length > 1){
+    await roastBatch();
+  } else {
+    await roastSingle();
+  }
+}
+
+async function roastSingle(){
+  const input = getActiveInput();
+  const errorBox = document.getElementById('errorBox');
+  errorBox.style.display = 'none';
+  if(!input.specText){
+    errorBox.textContent = 'Wala pang specs na na-enter. Fill in the fields, paste, or upload a file muna.';
+    errorBox.style.display = 'block';
+    return;
+  }
+  if(!workerUrl){
+    errorBox.textContent = 'Wala pang Worker URL na naka-set. Click ⚙ Settings sa taas, i-paste yung Cloudflare Worker URL mo, tapos Save.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('roastBtn');
+  btn.disabled = true;
+  const loadingRow = document.getElementById('loadingRow');
+  loadingRow.style.display = 'flex';
+  let msgIdx = 0;
+  document.getElementById('loadingText').textContent = loadingMsgs[0];
+  const msgInterval = setInterval(()=>{
+    msgIdx = (msgIdx+1) % loadingMsgs.length;
+    document.getElementById('loadingText').textContent = loadingMsgs[msgIdx];
+  }, 1400);
+
+  try{
+    const parsed = await fetchRoast(input);
     renderResults(parsed, input);
     await saveToHistory(parsed, input);
   }catch(err){
@@ -443,24 +564,48 @@ Keep every "why" and "reason" field to 1 short sentence, max ~20 words — this 
   }
 }
 
+async function roastBatch(){
+  const errorBox = document.getElementById('errorBox');
+  errorBox.style.display = 'none';
+  if(!workerUrl){
+    errorBox.textContent = 'Wala pang Worker URL na naka-set. Click ⚙ Settings sa taas, i-paste yung Cloudflare Worker URL mo, tapos Save.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('roastBtn');
+  btn.disabled = true;
+  const loadingRow = document.getElementById('loadingRow');
+  loadingRow.style.display = 'flex';
+  document.getElementById('results').style.display = 'none';
+
+  const batchResults = [];
+  for(let i=0; i<batchBuilds.length; i++){
+    const build = batchBuilds[i];
+    document.getElementById('loadingText').textContent = `Roasting ${i+1}/${batchBuilds.length}: ${build.name}...`;
+    try{
+      const parsed = await fetchRoast(build);
+      batchResults.push({ input: build, result: parsed });
+      await saveToHistory(parsed, build);
+    }catch(err){
+      batchResults.push({ input: build, error: err.message });
+    }
+    if(i < batchBuilds.length - 1) await sleep(4500); // stay under free-tier rate limits
+  }
+
+  loadingRow.style.display = 'none';
+  btn.disabled = false;
+  renderBatchResults(batchResults);
+}
+
 function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str==null ? '' : String(str);
   return d.innerHTML;
 }
 
-function renderResults(r, input){
-  const results = document.getElementById('results');
-  const verdict = r.overall_verdict || 'REWORK';
-  const compactWasOn = results.dataset.compactPref === '1';
-
-  let html = `<div class="stamp-row">
-    <div class="stamp ${escapeHtml(verdict)}">${verdict === 'PASS' ? '✓ READY TO SHIP' : verdict === 'FAIL' ? '✗ MAJOR REWORK' : '⚠ NEEDS REWORK'}</div>
-    <div class="overall-note">"${escapeHtml(r.overall_note||'')}"</div>
-  </div>
-  <div style="margin-bottom:10px;"><button class="ghost-btn" id="compactToggleBtn" style="font-size:0.68rem;padding:5px 10px;">Compact View</button></div>`;
-
-  html += `<div class="section-title">The Spec Sheet</div>`;
+function resultBodyHTML(r){
+  let html = `<div class="section-title">The Spec Sheet</div>`;
   (r.components||[]).forEach(c=>{
     html += `<div class="spec-row">
       <div class="top">
@@ -492,6 +637,37 @@ function renderResults(r, input){
   if(r.script_hook){
     html += `<div class="hook-box">🎬 "${escapeHtml(r.script_hook)}"</div>`;
   }
+  return html;
+}
+
+function copyRoastText(r, input){
+  const verdict = r.overall_verdict || 'REWORK';
+  const lines = [];
+  lines.push(input.name.toUpperCase()+' — '+verdict);
+  lines.push(r.overall_note);
+  lines.push('');
+  (r.components||[]).forEach(c=> lines.push(c.name+': '+c.input+' — '+c.roast));
+  lines.push('');
+  if(r.bottleneck_analysis) lines.push('Biggest issue: '+r.bottleneck_analysis);
+  lines.push('');
+  (r.better_build||[]).forEach(b=> lines.push('Upgrade '+b.component+': '+b.current+' → '+b.suggested+' ('+b.reason+')'));
+  lines.push('');
+  lines.push('Hook: '+r.script_hook);
+  navigator.clipboard.writeText(lines.join('\n'));
+}
+
+function renderResults(r, input){
+  const results = document.getElementById('results');
+  const verdict = r.overall_verdict || 'REWORK';
+  const compactWasOn = results.dataset.compactPref === '1';
+
+  let html = `<div class="stamp-row">
+    <div class="stamp ${escapeHtml(verdict)}">${verdict === 'PASS' ? '✓ READY TO SHIP' : verdict === 'FAIL' ? '✗ MAJOR REWORK' : '⚠ NEEDS REWORK'}</div>
+    <div class="overall-note">"${escapeHtml(r.overall_note||'')}"</div>
+  </div>
+  <div style="margin-bottom:10px;"><button class="ghost-btn" id="compactToggleBtn" style="font-size:0.68rem;padding:5px 10px;">Compact View</button></div>`;
+
+  html += resultBodyHTML(r);
 
   html += `<div class="action-row">
     <button class="ghost-btn" id="copyBtn">Copy Roast Script</button>
@@ -510,18 +686,8 @@ function renderResults(r, input){
     try{ await window.storage.set('config:compactView', isCompact ? '1' : '0'); }catch(e){}
   });
 
-  document.getElementById('copyBtn').addEventListener('click', ()=>{    const lines = [];
-    lines.push(input.name.toUpperCase()+' — '+verdict);
-    lines.push(r.overall_note);
-    lines.push('');
-    (r.components||[]).forEach(c=> lines.push(c.name+': '+c.input+' — '+c.roast));
-    lines.push('');
-    if(r.bottleneck_analysis) lines.push('Biggest issue: '+r.bottleneck_analysis);
-    lines.push('');
-    (r.better_build||[]).forEach(b=> lines.push('Upgrade '+b.component+': '+b.current+' → '+b.suggested+' ('+b.reason+')'));
-    lines.push('');
-    lines.push('Hook: '+r.script_hook);
-    navigator.clipboard.writeText(lines.join('\n'));
+  document.getElementById('copyBtn').addEventListener('click', ()=>{
+    copyRoastText(r, input);
     const btn = document.getElementById('copyBtn');
     const old = btn.textContent;
     btn.textContent = 'Copied ✓';
@@ -530,6 +696,55 @@ function renderResults(r, input){
   document.getElementById('newRoastBtn').addEventListener('click', ()=>{
     results.style.display='none';
     results.scrollIntoView({behavior:'smooth'});
+  });
+}
+
+function renderBatchResults(batchResults){
+  const results = document.getElementById('results');
+  const passCount = batchResults.filter(e=>!e.error && e.result.overall_verdict==='PASS').length;
+  const failCount = batchResults.filter(e=>e.error || e.result.overall_verdict==='FAIL').length;
+
+  let html = `<div class="section-title">Batch Roast — ${batchResults.length} Builds</div>
+  <div class="hint" style="margin-bottom:12px;">${passCount} ready to ship, ${batchResults.length - passCount - failCount} need rework, ${failCount} failed or flagged.</div>
+  <div class="batch-list">`;
+
+  batchResults.forEach((entry,i)=>{
+    if(entry.error){
+      html += `<details class="batch-item batch-error">
+        <summary><span class="stamp-mini FAIL">ERROR</span> <strong>${escapeHtml(entry.input.name)}</strong></summary>
+        <div class="batch-body"><div class="error" style="display:block;">${escapeHtml(entry.error)}</div></div>
+      </details>`;
+    } else {
+      const r = entry.result;
+      const verdict = r.overall_verdict || 'REWORK';
+      html += `<details class="batch-item">
+        <summary><span class="stamp-mini ${escapeHtml(verdict)}">${escapeHtml(verdict)}</span> <strong>${escapeHtml(entry.input.name)}</strong><span class="batch-note">— ${escapeHtml(r.overall_note||'')}</span></summary>
+        <div class="batch-body">${resultBodyHTML(r)}
+          <div class="action-row"><button class="ghost-btn batch-copy-btn" data-idx="${i}">Copy Roast Script</button></div>
+        </div>
+      </details>`;
+    }
+  });
+
+  html += `</div><div class="action-row" style="margin-top:16px;"><button class="ghost-btn" id="newRoastBtn">New Roast</button></div>`;
+
+  results.innerHTML = html;
+  results.style.display = 'block';
+  results.scrollIntoView({behavior:'smooth', block:'start'});
+
+  document.querySelectorAll('.batch-copy-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.idx, 10);
+      const entry = batchResults[idx];
+      if(!entry || entry.error) return;
+      copyRoastText(entry.result, entry.input);
+      const old = btn.textContent;
+      btn.textContent = 'Copied ✓';
+      setTimeout(()=>btn.textContent = old, 1500);
+    });
+  });
+  document.getElementById('newRoastBtn').addEventListener('click', ()=>{
+    results.style.display = 'none';
   });
 }
 
