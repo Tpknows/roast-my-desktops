@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPEC ROAST — EasyPC Build Reviewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Caveat:wght@500;600;700&family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --paper:#F1ECE0;
+  --paper-dark:#E4DCC9;
+  --ink:#201D18;
+  --muted:#8A8172;
+  --red:#B23A2E;
+  --red-dim:#B23A2E22;
+  --green:#3D6B4F;
+  --green-dim:#3D6B4F1c;
+  --amber:#A97318;
+  --amber-dim:#A973181c;
+  --line:#20201833;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family:'Inter',sans-serif;}
+.wrap{max-width:920px;margin:0 auto;padding:28px 20px 60px;}
+
+/* Header */
+.masthead{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+.masthead h1{font-family:'Archivo',sans-serif;font-weight:900;font-size:2.4rem;letter-spacing:-0.02em;margin:0;line-height:0.95;}
+.masthead h1 span{color:var(--red);}
+.masthead .tag{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
+.masthead .issue{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--muted);text-align:right;}
+
+/* Tabs */
+.tabs{display:flex;gap:0;margin-bottom:18px;border:2px solid var(--ink);border-radius:8px;overflow:hidden;width:fit-content;}
+.tab-btn{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:9px 16px;background:var(--paper);color:var(--ink);border:none;cursor:pointer;border-right:2px solid var(--ink);}
+.tab-btn:last-child{border-right:none;}
+.tab-btn.active{background:var(--ink);color:var(--paper);}
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* form */
+.sheet{background:var(--paper-dark);border:2px solid var(--ink);border-radius:10px;padding:20px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:640px){.grid{grid-template-columns:1fr;}}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);}
+.field input,.field select,.field textarea{font-family:'IBM Plex Mono',monospace;font-size:0.85rem;padding:9px 10px;border:1.5px solid var(--ink);border-radius:5px;background:var(--paper);color:var(--ink);}
+.field textarea{resize:vertical;min-height:70px;}
+.full{grid-column:1/-1;}
+
+.paste-area textarea{width:100%;min-height:200px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;padding:14px;border:1.5px solid var(--ink);border-radius:6px;background:var(--paper);color:var(--ink);}
+.hint{font-size:0.75rem;color:var(--muted);margin-top:6px;}
+
+.upload-box{border:2px dashed var(--ink);border-radius:8px;padding:30px 20px;text-align:center;background:var(--paper);cursor:pointer;}
+.upload-box:hover{background:var(--paper-dark);}
+.upload-box input{display:none;}
+#fileStatus{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;margin-top:10px;color:var(--green);}
+
+/* controls row */
+.controls{display:flex;align-items:center;gap:14px;margin:18px 0;flex-wrap:wrap;}
+.lang-toggle{display:flex;border:2px solid var(--ink);border-radius:7px;overflow:hidden;}
+.lang-toggle button{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;font-weight:600;padding:7px 12px;background:var(--paper);border:none;cursor:pointer;}
+.lang-toggle button.active{background:var(--ink);color:var(--paper);}
+
+.roast-btn{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.05rem;padding:13px 26px;background:var(--red);color:var(--paper);border:none;border-radius:8px;cursor:pointer;letter-spacing:0.01em;box-shadow:3px 3px 0 var(--ink);transition:transform .08s;}
+.roast-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink);}
+.roast-btn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink);}
+.roast-btn:disabled{opacity:0.5;cursor:default;box-shadow:3px 3px 0 var(--ink);transform:none;}
+
+/* results */
+#results{margin-top:30px;display:none;}
+.stamp-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+.stamp{font-family:'Archivo',sans-serif;font-weight:900;font-size:1.3rem;padding:10px 22px;border:4px solid currentColor;border-radius:8px;transform:rotate(-3deg);letter-spacing:0.03em;display:inline-block;}
+.stamp.PASS{color:var(--green);}
+.stamp.REWORK{color:var(--amber);}
+.stamp.FAIL{color:var(--red);}
+.overall-note{font-family:'Caveat',cursive;font-size:1.5rem;color:var(--red);flex:1;min-width:220px;}
+
+.spec-row{position:relative;border-bottom:1px solid var(--line);padding:14px 4px 18px;}
+.spec-row .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.spec-row .label{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);}
+.spec-row .val{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.95rem;}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;font-weight:700;text-transform:uppercase;padding:3px 8px;border-radius:20px;letter-spacing:0.04em;}
+.badge.good{background:var(--green-dim);color:var(--green);}
+.badge.weak{background:var(--amber-dim);color:var(--amber);}
+.badge.bottleneck{background:var(--red-dim);color:var(--red);}
+.badge.overkill{background:var(--amber-dim);color:var(--amber);}
+.roast-note{font-family:'Caveat',cursive;font-size:1.3rem;color:var(--red);margin-top:6px;line-height:1.15;transform:rotate(-0.6deg);}
+.why{font-family:'Inter',sans-serif;font-size:0.85rem;color:var(--ink);opacity:0.85;margin-top:4px;}
+
+.section-title{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.1rem;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink);}
+
+.bottleneck-box{background:var(--red-dim);border:1.5px solid var(--red);border-radius:8px;padding:14px 16px;font-size:0.9rem;line-height:1.5;}
+
+.better-row{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;align-items:start;padding:10px 0;border-bottom:1px dashed var(--line);font-size:0.85rem;}
+.better-row .comp{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:0.72rem;text-transform:uppercase;color:var(--muted);}
+.better-row .cur{color:var(--muted);text-decoration:line-through;}
+.better-row .sug{color:var(--green);font-weight:600;}
+.better-row .why{grid-column:1/-1;color:var(--ink);opacity:0.8;font-size:0.82rem;}
+@media(max-width:640px){.better-row{grid-template-columns:1fr;}}
+
+.hook-box{background:var(--ink);color:var(--paper);border-radius:8px;padding:16px 18px;font-family:'Caveat',cursive;font-size:1.4rem;line-height:1.3;margin-top:16px;}
+
+.action-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+.ghost-btn{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;font-weight:600;padding:9px 14px;background:transparent;border:1.5px solid var(--ink);border-radius:6px;cursor:pointer;color:var(--ink);}
+.ghost-btn:hover{background:var(--ink);color:var(--paper);}
+
+.loading{display:none;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;color:var(--muted);margin-top:14px;}
+.spinner{width:16px;height:16px;border:2.5px solid var(--muted);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.error{display:none;background:var(--red-dim);color:var(--red);border:1.5px solid var(--red);border-radius:6px;padding:10px 14px;font-size:0.82rem;margin-top:12px;}
+
+/* history */
+.history-wrap{margin-top:40px;}
+.history-item{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1.5px solid var(--ink);border-radius:6px;margin-bottom:8px;background:var(--paper-dark);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:0.78rem;}
+.history-item:hover{background:var(--paper);}
+.history-item .stamp-mini{font-weight:800;padding:2px 8px;border-radius:4px;font-size:0.65rem;}
+.history-item .stamp-mini.PASS{background:var(--green-dim);color:var(--green);}
+.history-item .stamp-mini.REWORK{background:var(--amber-dim);color:var(--amber);}
+.history-item .stamp-mini.FAIL{background:var(--red-dim);color:var(--red);}
+.del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>SPEC<span>ROAST</span></h1>
+      <div class="tag">EasyPC Monthly Build Reviewer</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="issue" id="dateStamp"></div>
+      <button class="ghost-btn" id="settingsBtn" style="margin-top:6px;font-size:0.68rem;padding:5px 10px;">⚙ Settings</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="settingsPanel" style="display:none;margin-bottom:18px;">
+    <div class="field">
+      <label>Worker Endpoint URL (Gemini proxy)</label>
+      <input id="workerUrlInput" placeholder="https://your-worker.your-subdomain.workers.dev">
+    </div>
+    <div class="hint">Paste this in once your Cloudflare Worker is deployed. Saved locally in this tool, not shared.</div>
+    <div class="action-row">
+      <button class="ghost-btn" id="saveWorkerUrlBtn">Save</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="manual">Manual Entry</button>
+    <button class="tab-btn" data-tab="paste">Paste Specs</button>
+    <button class="tab-btn" data-tab="upload">Upload Excel</button>
+  </div>
+
+  <div class="panel active" id="panel-manual">
+    <div class="sheet">
+      <div class="grid">
+        <div class="field"><label>Build / Campaign Name</label><input id="m_name" placeholder="e.g. July Promo Desktop"></div>
+        <div class="field"><label>Target Use Case</label>
+          <select id="m_usecase">
+            <option>Budget Gaming</option>
+            <option>Mid-range Gaming</option>
+            <option>Office / Productivity</option>
+            <option>Content Creation / Editing</option>
+            <option>Streaming</option>
+            <option>General / Family Use</option>
+          </select>
+        </div>
+        <div class="field"><label>CPU</label><input id="m_cpu" placeholder="e.g. Intel Core i5-12400F"></div>
+        <div class="field"><label>Motherboard</label><input id="m_mobo" placeholder="e.g. H610M DDR4"></div>
+        <div class="field"><label>RAM</label><input id="m_ram" placeholder="e.g. 8GB DDR4 3200MHz single stick"></div>
+        <div class="field"><label>GPU</label><input id="m_gpu" placeholder="e.g. RTX 3050 8GB"></div>
+        <div class="field"><label>Storage</label><input id="m_storage" placeholder="e.g. 512GB NVMe SSD"></div>
+        <div class="field"><label>PSU</label><input id="m_psu" placeholder="e.g. 500W non-certified"></div>
+        <div class="field"><label>Case / Airflow</label><input id="m_case" placeholder="e.g. Basic mATX case, 1 fan"></div>
+        <div class="field"><label>CPU Cooler</label><input id="m_cooler" placeholder="e.g. Stock cooler"></div>
+        <div class="field full"><label>Extra notes (optional)</label><textarea id="m_notes" placeholder="Anything else about the build worth flagging"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-paste">
+    <div class="paste-area">
+      <textarea id="p_text" placeholder="Paste specs here, any format — e.g.&#10;CPU: Ryzen 5 5600G&#10;RAM: 8GB DDR4&#10;GPU: none (iGPU)&#10;Storage: 256GB SSD&#10;PSU: 450W&#10;Use case: budget gaming"></textarea>
+      <div class="hint">Paste however it comes — line by line, comma-separated, whatever. It'll figure out the components.</div>
+      <div class="grid" style="margin-top:12px;">
+        <div class="field"><label>Build / Campaign Name</label><input id="p_name" placeholder="e.g. July Promo Desktop"></div>
+        <div class="field"><label>Target Use Case</label>
+          <select id="p_usecase">
+            <option>Budget Gaming</option>
+            <option>Mid-range Gaming</option>
+            <option>Office / Productivity</option>
+            <option>Content Creation / Editing</option>
+            <option>Streaming</option>
+            <option>General / Family Use</option>
+            <option value="">Not specified — infer from specs</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-upload">
+    <div class="upload-box" id="dropZone">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">📄 Click to upload Excel / CSV (.xlsx, .xls, .csv)</div>
+      <div class="hint">First matching sheet/table will be parsed for component + spec columns.</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    </div>
+    <div id="fileStatus"></div>
+    <div class="grid" style="margin-top:14px;">
+      <div class="field"><label>Build / Campaign Name</label><input id="u_name" placeholder="e.g. July Promo Desktop"></div>
+      <div class="field"><label>Target Use Case</label>
+        <select id="u_usecase">
+          <option>Budget Gaming</option>
+          <option>Mid-range Gaming</option>
+          <option>Office / Productivity</option>
+          <option>Content Creation / Editing</option>
+          <option>Streaming</option>
+          <option>General / Family Use</option>
+          <option value="">Not specified — infer from specs</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="lang-toggle">
+      <button class="active" data-lang="taglish">Taglish</button>
+      <button data-lang="english">English</button>
+    </div>
+    <button class="roast-btn" id="roastBtn">🔥 Roast This Build</button>
+  </div>
+
+  <div class="loading" id="loadingRow"><div class="spinner"></div><span id="loadingText">Reading the spec sheet...</span></div>
+  <div class="error" id="errorBox"></div>
+
+  <div id="results"></div>
+
+  <div class="history-wrap">
+    <div class="section-title">Past Roasts</div>
+    <div id="historyList"></div>
+  </div>
+
+</div>
+
+<script>
+const dateStampEl = document.getElementById('dateStamp');
+dateStampEl.textContent = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Settings / Worker URL
+let workerUrl = '';
+const settingsPanel = document.getElementById('settingsPanel');
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
+});
+document.getElementById('saveWorkerUrlBtn').addEventListener('click', async ()=>{
+  const val = document.getElementById('workerUrlInput').value.trim();
+  workerUrl = val;
+  try{
+    await window.storage.set('config:workerUrl', val);
+    const btn = document.getElementById('saveWorkerUrlBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Saved ✓';
+    setTimeout(()=>btn.textContent = old, 1500);
+  }catch(e){ console.error('could not save worker url', e); }
+});
+async function loadWorkerUrl(){
+  try{
+    const res = await window.storage.get('config:workerUrl');
+    if(res && res.value){
+      workerUrl = res.value;
+      document.getElementById('workerUrlInput').value = workerUrl;
+    }
+  }catch(e){ /* not set yet */ }
+}
+loadWorkerUrl();
+
+let currentLang = 'taglish';
+document.querySelectorAll('.lang-toggle button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.lang-toggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentLang = btn.dataset.lang;
+  });
+});
+
+// File upload
+let uploadedSpecText = '';
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  document.getElementById('fileStatus').textContent = 'Reading ' + file.name + '...';
+  try{
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data);
+    const sheetName = wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+    uploadedSpecText = rows.map(r=>r.join(' | ')).filter(r=>r.replace(/\|/g,'').trim()).join('\n');
+    document.getElementById('fileStatus').textContent = '✓ Loaded "'+sheetName+'" — '+rows.length+' rows';
+  }catch(err){
+    document.getElementById('fileStatus').textContent = '✗ Could not read file: '+err.message;
+    uploadedSpecText = '';
+  }
+});
+
+function buildSpecTextFromManual(){
+  const get = id => document.getElementById(id).value.trim();
+  const parts = [
+    ['CPU', get('m_cpu')],
+    ['Motherboard', get('m_mobo')],
+    ['RAM', get('m_ram')],
+    ['GPU', get('m_gpu')],
+    ['Storage', get('m_storage')],
+    ['PSU', get('m_psu')],
+    ['Case / Airflow', get('m_case')],
+    ['CPU Cooler', get('m_cooler')],
+  ].filter(p=>p[1]);
+  let text = parts.map(p=>p[0]+': '+p[1]).join('\n');
+  if(get('m_notes')) text += '\nNotes: '+get('m_notes');
+  return text;
+}
+
+function getActiveInput(){
+  const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+  if(activeTab==='manual'){
+    return { specText: buildSpecTextFromManual(), name: document.getElementById('m_name').value.trim() || 'Untitled Build', useCase: document.getElementById('m_usecase').value };
+  } else if(activeTab==='paste'){
+    return { specText: document.getElementById('p_text').value.trim(), name: document.getElementById('p_name').value.trim() || 'Untitled Build', useCase: document.getElementById('p_usecase').value };
+  } else {
+    return { specText: uploadedSpecText, name: document.getElementById('u_name').value.trim() || 'Untitled Build', useCase: document.getElementById('u_usecase').value };
+  }
+}
+
+const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','Grabbing the red pen...','Sizing up the PSU headroom...'];
+
+async function roastBuild(){
+  const input = getActiveInput();
+  const errorBox = document.getElementById('errorBox');
+  errorBox.style.display = 'none';
+  if(!input.specText){
+    errorBox.textContent = 'Wala pang specs na na-enter. Fill in the fields, paste, or upload a file muna.';
+    errorBox.style.display = 'block';
+    return;
+  }
+  if(!workerUrl){
+    errorBox.textContent = 'Wala pang Worker URL na naka-set. Click ⚙ Settings sa taas, i-paste yung Cloudflare Worker URL mo, tapos Save.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('roastBtn');
+  btn.disabled = true;
+  const loadingRow = document.getElementById('loadingRow');
+  loadingRow.style.display = 'flex';
+  let msgIdx = 0;
+  document.getElementById('loadingText').textContent = loadingMsgs[0];
+  const msgInterval = setInterval(()=>{
+    msgIdx = (msgIdx+1) % loadingMsgs.length;
+    document.getElementById('loadingText').textContent = loadingMsgs[msgIdx];
+  }, 1400);
+
+  const langInstruction = currentLang==='taglish'
+    ? 'Write all roast lines, the overall note, and the hook in natural Taglish (Filipino-English code-switching), the way a witty EasyPC content creator would talk to a Filipino TikTok audience. Keep "why" explanations in clear English or light Taglish, whichever reads more naturally.'
+    : 'Write all text in English, witty and punchy, suitable for a tech content creator.';
+
+  const systemPrompt = `You are a veteran PC builder reviewing a promotional prebuilt desktop configuration for a real-world content "roast" segment made by EasyPC, a PC hardware retailer in the Philippines.
+
+Your job: evaluate the build PURELY on real-world usage experience for its stated target use case. COMPLETELY IGNORE PRICE — do not mention cost, value-for-money, or budget-friendliness at all. Focus only on: performance bottlenecks (CPU/GPU mismatch), RAM capacity/speed/channel config, storage speed and capacity adequacy, PSU wattage headroom and certification, cooling/airflow adequacy, motherboard feature limitations, and overall real-world experience for someone actually using this machine daily for the stated purpose.
+
+${langInstruction}
+
+Respond with ONLY valid JSON (no markdown fences, no preamble), matching exactly this shape:
+{
+  "overall_verdict": "PASS" | "REWORK" | "FAIL",
+  "overall_note": "one punchy sentence, in the roast voice",
+  "components": [
+    { "name": "CPU", "input": "the value as given, or 'not specified'", "grade": "good" | "weak" | "bottleneck" | "overkill", "roast": "short punchy red-pen style annotation, max ~14 words", "why": "1-2 sentence real-world explanation, no price talk" }
+  ],
+  "bottleneck_analysis": "one short paragraph identifying the single biggest real-world mismatch or risk in this build, or confirming there isn't one",
+  "better_build": [
+    { "component": "GPU", "current": "value given", "suggested": "better alternative component, spec-only reasoning", "reason": "1 sentence why, no price talk" }
+  ],
+  "script_hook": "one punchy short-form video hook line summarizing the verdict, camera-ready for TikTok/Reels"
+}
+
+Include an entry in "components" for every component actually provided (skip ones not given). Include entries in "better_build" only for components that actually need upgrading — if a component is already good for the use case, leave it out of better_build. If overall_verdict is PASS, better_build can be a short list of minor polish suggestions or empty array.`;
+
+  const userPrompt = `Build name: ${input.name}\nTarget use case: ${input.useCase || 'not specified — infer the most likely intended use from the specs'}\n\nSpecs:\n${input.specText}`;
+
+  try{
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ systemPrompt, userPrompt })
+    });
+    if(!response.ok){
+      const errText = await response.text().catch(()=> '');
+      throw new Error('Worker returned ' + response.status + (errText ? ': ' + errText.slice(0,150) : ''));
+    }
+    const data = await response.json();
+    if(!data.text) throw new Error('No response text from Worker');
+    let clean = data.text.trim().replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const parsed = JSON.parse(clean);
+    renderResults(parsed, input);
+    await saveToHistory(parsed, input);
+  }catch(err){
+    errorBox.textContent = 'Roast failed: ' + err.message + '. Try again.';
+    errorBox.style.display = 'block';
+  }finally{
+    clearInterval(msgInterval);
+    loadingRow.style.display = 'none';
+    btn.disabled = false;
+  }
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str==null ? '' : String(str);
+  return d.innerHTML;
+}
+
+function renderResults(r, input){
+  const results = document.getElementById('results');
+  const verdict = r.overall_verdict || 'REWORK';
+
+  let html = `<div class="stamp-row">
+    <div class="stamp ${escapeHtml(verdict)}">${verdict === 'PASS' ? '✓ READY TO SHIP' : verdict === 'FAIL' ? '✗ MAJOR REWORK' : '⚠ NEEDS REWORK'}</div>
+    <div class="overall-note">"${escapeHtml(r.overall_note||'')}"</div>
+  </div>`;
+
+  html += `<div class="section-title">The Spec Sheet</div>`;
+  (r.components||[]).forEach(c=>{
+    html += `<div class="spec-row">
+      <div class="top">
+        <div><span class="label">${escapeHtml(c.name)}</span><br><span class="val">${escapeHtml(c.input)}</span></div>
+        <span class="badge ${escapeHtml(c.grade)}">${escapeHtml(c.grade)}</span>
+      </div>
+      <div class="roast-note">${escapeHtml(c.roast)}</div>
+      <div class="why">${escapeHtml(c.why)}</div>
+    </div>`;
+  });
+
+  if(r.bottleneck_analysis){
+    html += `<div class="section-title">Biggest Real-World Issue</div>
+    <div class="bottleneck-box">${escapeHtml(r.bottleneck_analysis)}</div>`;
+  }
+
+  if(r.better_build && r.better_build.length){
+    html += `<div class="section-title">Better Build (Specs Only)</div>`;
+    r.better_build.forEach(b=>{
+      html += `<div class="better-row">
+        <div class="comp">${escapeHtml(b.component)}</div>
+        <div class="cur">${escapeHtml(b.current)}</div>
+        <div class="sug">→ ${escapeHtml(b.suggested)}</div>
+        <div class="why">${escapeHtml(b.reason)}</div>
+      </div>`;
+    });
+  }
+
+  if(r.script_hook){
+    html += `<div class="hook-box">🎬 "${escapeHtml(r.script_hook)}"</div>`;
+  }
+
+  html += `<div class="action-row">
+    <button class="ghost-btn" id="copyBtn">Copy Roast Script</button>
+    <button class="ghost-btn" id="newRoastBtn">New Roast</button>
+  </div>`;
+
+  results.innerHTML = html;
+  results.style.display = 'block';
+  results.scrollIntoView({behavior:'smooth', block:'start'});
+
+  document.getElementById('copyBtn').addEventListener('click', ()=>{
+    const lines = [];
+    lines.push(input.name.toUpperCase()+' — '+verdict);
+    lines.push(r.overall_note);
+    lines.push('');
+    (r.components||[]).forEach(c=> lines.push(c.name+': '+c.input+' — '+c.roast));
+    lines.push('');
+    if(r.bottleneck_analysis) lines.push('Biggest issue: '+r.bottleneck_analysis);
+    lines.push('');
+    (r.better_build||[]).forEach(b=> lines.push('Upgrade '+b.component+': '+b.current+' → '+b.suggested+' ('+b.reason+')'));
+    lines.push('');
+    lines.push('Hook: '+r.script_hook);
+    navigator.clipboard.writeText(lines.join('\n'));
+    const btn = document.getElementById('copyBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    setTimeout(()=>btn.textContent=old, 1500);
+  });
+  document.getElementById('newRoastBtn').addEventListener('click', ()=>{
+    results.style.display='none';
+    results.scrollIntoView({behavior:'smooth'});
+  });
+}
+
+document.getElementById('roastBtn').addEventListener('click', roastBuild);
+
+// History (personal storage)
+async function saveToHistory(result, input){
+  try{
+    const id = 'roast_'+Date.now();
+    const entry = { id, name: input.name, verdict: result.overall_verdict, savedAt: new Date().toISOString(), result, input };
+    await window.storage.set(id, JSON.stringify(entry));
+    loadHistory();
+  }catch(e){ console.error('Could not save history', e); }
+}
+
+async function loadHistory(){
+  const list = document.getElementById('historyList');
+  try{
+    const keys = await window.storage.list('roast_');
+    if(!keys || !keys.keys || !keys.keys.length){
+      list.innerHTML = '<div class="hint">No roasts yet — your first one will show up here.</div>';
+      return;
+    }
+    const entries = [];
+    for(const k of keys.keys){
+      try{
+        const res = await window.storage.get(k);
+        if(res) entries.push(JSON.parse(res.value));
+      }catch(e){}
+    }
+    entries.sort((a,b)=> new Date(b.savedAt) - new Date(a.savedAt));
+    list.innerHTML = '';
+    entries.forEach(entry=>{
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const d = new Date(entry.savedAt);
+      div.innerHTML = `<span><span class="stamp-mini ${entry.verdict}">${entry.verdict}</span> &nbsp; ${escapeHtml(entry.name)} <span style="color:var(--muted)">— ${d.toLocaleDateString()}</span></span><button class="del-btn" data-id="${entry.id}">✕</button>`;
+      div.addEventListener('click',(e)=>{
+        if(e.target.classList.contains('del-btn')) return;
+        renderResults(entry.result, entry.input);
+      });
+      div.querySelector('.del-btn').addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        await window.storage.delete(entry.id);
+        loadHistory();
+      });
+      list.appendChild(div);
+    });
+  }catch(e){
+    list.innerHTML = '<div class="hint">No roasts yet — your first one will show up here.</div>';
+  }
+}
+loadHistory();
+</script>
+</body>
+</html>
