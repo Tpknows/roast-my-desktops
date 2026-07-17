@@ -577,16 +577,19 @@ async function fetchRoast(input, attempt=1){
   });
   if(!response.ok){
     const errText = await response.text().catch(()=> '');
-    if(response.status === 429 && attempt < 2){
-      await sleep(8000);
+    if(response.status === 429 && attempt < 3){
+      await sleep(attempt === 1 ? 15000 : 45000); // RPM limits reset within ~60s; RPD limits won't, but this covers the common case
       return fetchRoast(input, attempt+1);
+    }
+    if(response.status === 429){
+      throw new Error('Gemini quota exceeded (429). Ito ay limitasyon ng Gemini API key mo, hindi bug ng tool — check https://ai.dev/usage?tab=rate-limit para malaman kung RPM (per-minute, mag-a-auto-reset) o RPD (per-day, mag-re-reset sa midnight Pacific Time) ang na-hit. Pwede ring i-enable ang billing sa Google AI Studio para tumaas ang limit.');
     }
     throw new Error('Worker returned ' + response.status + (errText ? ': ' + errText.slice(0,150) : ''));
   }
   const data = await response.json();
   if(!data.text) throw new Error('No response text from Worker');
   let clean = data.text.trim().replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
-  return JSON.parse(clean);
+  return { parsed: JSON.parse(clean), detectedPrice: data.detectedPrice };
 }
 
 async function roastBuild(){
@@ -625,7 +628,12 @@ async function roastSingle(){
   }, 1400);
 
   try{
-    const parsed = await fetchRoast(input);
+    const { parsed, detectedPrice } = await fetchRoast(input);
+    if(detectedPrice && !input.price){
+      input.price = detectedPrice;
+      const priceField = document.getElementById('s_price');
+      if(priceField) priceField.value = detectedPrice;
+    }
     renderResults(parsed, input);
     await saveToHistory(parsed, input);
   }catch(err){
@@ -658,7 +666,8 @@ async function roastBatch(){
     const build = batchBuilds[i];
     document.getElementById('loadingText').textContent = `Roasting ${i+1}/${batchBuilds.length}: ${build.name}...`;
     try{
-      const parsed = await fetchRoast(build);
+      const { parsed, detectedPrice } = await fetchRoast(build);
+      if(detectedPrice && !build.price) build.price = detectedPrice;
       batchResults.push({ input: build, result: parsed });
       await saveToHistory(parsed, build);
     }catch(err){
