@@ -166,6 +166,14 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
     <div class="action-row">
       <button class="ghost-btn" id="saveWorkerUrlBtn">Save</button>
     </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Google Sheet Log URL (Apps Script Web App, optional)</label>
+      <input id="sheetsUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+    </div>
+    <div class="hint">Kung naka-set ito, every roast gets logged as a new row in your Google Sheet automatically — permanent record, separate sa local history.</div>
+    <div class="action-row">
+      <button class="ghost-btn" id="saveSheetsUrlBtn">Save</button>
+    </div>
   </div>
 
   <div class="tabs">
@@ -181,6 +189,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
         <div class="field"><label>Build / Campaign Name</label><input id="m_name" placeholder="e.g. July Promo Desktop"></div>
         <div class="field"><label>Target Use Case</label>
           <select id="m_usecase">
+            <option value="" selected>Not specified — infer from specs</option>
             <option>Budget Gaming</option>
             <option>Mid-range Gaming</option>
             <option>Office / Productivity</option>
@@ -211,13 +220,13 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
         <div class="field"><label>Build / Campaign Name</label><input id="p_name" placeholder="e.g. July Promo Desktop"></div>
         <div class="field"><label>Target Use Case</label>
           <select id="p_usecase">
+            <option value="" selected>Not specified — infer from specs</option>
             <option>Budget Gaming</option>
             <option>Mid-range Gaming</option>
             <option>Office / Productivity</option>
             <option>Content Creation / Editing</option>
             <option>Streaming</option>
             <option>General / Family Use</option>
-            <option value="">Not specified — infer from specs</option>
           </select>
         </div>
         <div class="field"><label>Price (₱, optional)</label><input id="p_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
@@ -237,13 +246,13 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
       <div class="field"><label>Build / Campaign Name</label><input id="s_name" placeholder="e.g. July Promo Desktop"></div>
       <div class="field"><label>Target Use Case</label>
         <select id="s_usecase">
+          <option value="" selected>Not specified — infer from specs</option>
           <option>Budget Gaming</option>
           <option>Mid-range Gaming</option>
           <option>Office / Productivity</option>
           <option>Content Creation / Editing</option>
           <option>Streaming</option>
           <option>General / Family Use</option>
-          <option value="">Not specified — infer from specs</option>
         </select>
       </div>
       <div class="field"><label>Price (₱, optional)</label><input id="s_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
@@ -262,13 +271,13 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
       <div class="field"><label>Build / Campaign Name</label><input id="u_name" placeholder="e.g. July Promo Desktop"></div>
       <div class="field"><label>Target Use Case</label>
         <select id="u_usecase">
+          <option value="" selected>Not specified — infer from specs</option>
           <option>Budget Gaming</option>
           <option>Mid-range Gaming</option>
           <option>Office / Productivity</option>
           <option>Content Creation / Editing</option>
           <option>Streaming</option>
           <option>General / Family Use</option>
-          <option value="">Not specified — infer from specs</option>
         </select>
       </div>
       <div class="field"><label>Price (₱, optional)</label><input id="u_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
@@ -337,6 +346,59 @@ async function loadWorkerUrl(){
   }catch(e){ /* not set yet */ }
 }
 loadWorkerUrl();
+
+// Settings / Google Sheet log URL
+let sheetsUrl = '';
+document.getElementById('saveSheetsUrlBtn').addEventListener('click', async ()=>{
+  const val = document.getElementById('sheetsUrlInput').value.trim();
+  sheetsUrl = val;
+  try{
+    await window.storage.set('config:sheetsUrl', val);
+    const btn = document.getElementById('saveSheetsUrlBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Saved ✓';
+    setTimeout(()=>btn.textContent = old, 1500);
+  }catch(e){ console.error('could not save sheets url', e); }
+});
+async function loadSheetsUrl(){
+  try{
+    const res = await window.storage.get('config:sheetsUrl');
+    if(res && res.value){
+      sheetsUrl = res.value;
+      document.getElementById('sheetsUrlInput').value = sheetsUrl;
+    }
+  }catch(e){ /* not set yet */ }
+}
+loadSheetsUrl();
+
+// Logs a completed roast as a new row in the user's Google Sheet, via an
+// Apps Script Web App the user deploys themselves (see setup doc). Fire-
+// and-forget: a logging failure should never block or error out the roast
+// itself, so this always resolves quietly.
+async function logToSheet(r, input, fromCache){
+  if(!sheetsUrl) return;
+  try{
+    const pv = r.price_verdict || {};
+    await fetch(sheetsUrl, {
+      method: 'POST',
+      mode: 'no-cors', // Apps Script Web Apps don't return CORS headers; we don't need to read the response anyway
+      headers: { 'Content-Type': 'text/plain' }, // avoids a CORS preflight, which Apps Script Web Apps can't answer
+      body: JSON.stringify({
+        name: input.name || '',
+        useCase: input.useCase || '',
+        price: input.price || '',
+        overall_verdict: r.overall_verdict || '',
+        overall_note: r.overall_note || '',
+        price_verdict_label: pv.verdict || '',
+        price_notes: [pv.market_comparison, pv.roast].filter(Boolean).join(' | '),
+        script_hook: r.script_hook || '',
+        components: r.components || [],
+        better_build: r.better_build || [],
+        fromCache: !!fromCache
+      })
+    });
+  }catch(e){ console.error('Could not log to Google Sheet', e); }
+}
 
 async function loadCompactPref(){
   try{
@@ -565,7 +627,34 @@ Keep every "why" and "reason" field to 1 short sentence, max ~20 words — this 
 
 function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 
+// Cache key: same name/use-case/price/specs/screenshot → same roast, so we
+// never re-spend an API call on an identical input. Screenshot bytes are
+// included in the hash, so a re-pasted identical image still hits cache.
+async function computeCacheKey(input){
+  const raw = JSON.stringify({
+    name: input.name || '',
+    useCase: input.useCase || '',
+    price: input.price || '',
+    specText: input.specText || '',
+    image: input.imageBase64 || ''
+  });
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 async function fetchRoast(input, attempt=1){
+  const cacheKey = 'roastcache_' + await computeCacheKey(input);
+
+  if(attempt === 1){
+    try{
+      const cached = await window.storage.get(cacheKey);
+      if(cached && cached.value){
+        const saved = JSON.parse(cached.value);
+        return { parsed: saved.parsed, detectedPrice: saved.detectedPrice, fromCache: true };
+      }
+    }catch(e){ /* no cache entry yet — fall through to a live call */ }
+  }
+
   const { systemPrompt, userPrompt } = buildPrompts(input);
   const payload = { systemPrompt, userPrompt };
   if(input.price) payload.price = input.price;
@@ -589,7 +678,13 @@ async function fetchRoast(input, attempt=1){
   const data = await response.json();
   if(!data.text) throw new Error('No response text from Worker');
   let clean = data.text.trim().replace(/^```json/,'').replace(/^```/,'').replace(/```$/,'').trim();
-  return { parsed: JSON.parse(clean), detectedPrice: data.detectedPrice };
+  const parsed = JSON.parse(clean);
+
+  try{
+    await window.storage.set(cacheKey, JSON.stringify({ parsed, detectedPrice: data.detectedPrice }));
+  }catch(e){ console.error('Could not save roast cache', e); }
+
+  return { parsed, detectedPrice: data.detectedPrice, fromCache: false };
 }
 
 async function roastBuild(){
@@ -628,14 +723,15 @@ async function roastSingle(){
   }, 1400);
 
   try{
-    const { parsed, detectedPrice } = await fetchRoast(input);
+    const { parsed, detectedPrice, fromCache } = await fetchRoast(input);
     if(detectedPrice && !input.price){
       input.price = detectedPrice;
       const priceField = document.getElementById('s_price');
       if(priceField) priceField.value = detectedPrice;
     }
-    renderResults(parsed, input);
+    renderResults(parsed, input, fromCache);
     await saveToHistory(parsed, input);
+    await logToSheet(parsed, input, fromCache);
   }catch(err){
     errorBox.textContent = 'Roast failed: ' + err.message + '. Try again.';
     errorBox.style.display = 'block';
@@ -665,15 +761,18 @@ async function roastBatch(){
   for(let i=0; i<batchBuilds.length; i++){
     const build = batchBuilds[i];
     document.getElementById('loadingText').textContent = `Roasting ${i+1}/${batchBuilds.length}: ${build.name}...`;
+    let wasCached = false;
     try{
-      const { parsed, detectedPrice } = await fetchRoast(build);
+      const { parsed, detectedPrice, fromCache } = await fetchRoast(build);
+      wasCached = !!fromCache;
       if(detectedPrice && !build.price) build.price = detectedPrice;
-      batchResults.push({ input: build, result: parsed });
+      batchResults.push({ input: build, result: parsed, fromCache });
       await saveToHistory(parsed, build);
+      await logToSheet(parsed, build, fromCache);
     }catch(err){
       batchResults.push({ input: build, error: err.message });
     }
-    if(i < batchBuilds.length - 1) await sleep(4500); // stay under free-tier rate limits
+    if(i < batchBuilds.length - 1 && !wasCached) await sleep(4500); // stay under free-tier rate limits; cached hits made no API call so no need to throttle
   }
 
   loadingRow.style.display = 'none';
@@ -758,7 +857,7 @@ function copyRoastText(r, input){
   navigator.clipboard.writeText(lines.join('\n'));
 }
 
-function renderResults(r, input){
+function renderResults(r, input, fromCache){
   const results = document.getElementById('results');
   const verdict = r.overall_verdict || 'REWORK';
   const compactWasOn = results.dataset.compactPref === '1';
@@ -766,8 +865,11 @@ function renderResults(r, input){
   let html = `<div class="stamp-row">
     <div class="stamp ${escapeHtml(verdict)}">${verdict === 'PASS' ? '✓ READY TO SHIP' : verdict === 'FAIL' ? '✗ MAJOR REWORK' : '⚠ NEEDS REWORK'}</div>
     <div class="overall-note">"${escapeHtml(r.overall_note||'')}"</div>
-  </div>
-  <div style="margin-bottom:10px;"><button class="ghost-btn" id="compactToggleBtn" style="font-size:0.68rem;padding:5px 10px;">Compact View</button></div>`;
+  </div>`;
+  if(fromCache){
+    html += `<div class="hint" style="margin-bottom:10px;">⚡ Cached result — parehong build na na-roast na dati, kaya walang bagong API call na ginawa.</div>`;
+  }
+  html += `<div style="margin-bottom:10px;"><button class="ghost-btn" id="compactToggleBtn" style="font-size:0.68rem;padding:5px 10px;">Compact View</button></div>`;
 
   html += resultBodyHTML(r);
 
@@ -820,7 +922,7 @@ function renderBatchResults(batchResults){
       const r = entry.result;
       const verdict = r.overall_verdict || 'REWORK';
       html += `<details class="batch-item">
-        <summary><span class="stamp-mini ${escapeHtml(verdict)}">${escapeHtml(verdict)}</span> <strong>${escapeHtml(entry.input.name)}</strong><span class="batch-note">— ${escapeHtml(r.overall_note||'')}</span></summary>
+        <summary><span class="stamp-mini ${escapeHtml(verdict)}">${escapeHtml(verdict)}</span> <strong>${escapeHtml(entry.input.name)}</strong>${entry.fromCache ? ' <span class="hint">⚡ cached</span>' : ''}<span class="batch-note">— ${escapeHtml(r.overall_note||'')}</span></summary>
         <div class="batch-body">${resultBodyHTML(r)}
           <div class="action-row"><button class="ghost-btn batch-copy-btn" data-idx="${i}">Copy Roast Script</button></div>
         </div>
