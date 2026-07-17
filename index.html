@@ -171,6 +171,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
   <div class="tabs">
     <button class="tab-btn active" data-tab="manual">Manual Entry</button>
     <button class="tab-btn" data-tab="paste">Paste Specs</button>
+    <button class="tab-btn" data-tab="screenshot">Screenshot</button>
     <button class="tab-btn" data-tab="upload">Upload Excel</button>
   </div>
 
@@ -196,6 +197,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
         <div class="field"><label>PSU</label><input id="m_psu" placeholder="e.g. 500W non-certified"></div>
         <div class="field"><label>Case / Airflow</label><input id="m_case" placeholder="e.g. Basic mATX case, 1 fan"></div>
         <div class="field"><label>CPU Cooler</label><input id="m_cooler" placeholder="e.g. Stock cooler"></div>
+        <div class="field"><label>Price (₱, optional)</label><input id="m_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
         <div class="field full"><label>Extra notes (optional)</label><textarea id="m_notes" placeholder="Anything else about the build worth flagging"></textarea></div>
       </div>
     </div>
@@ -218,7 +220,33 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
             <option value="">Not specified — infer from specs</option>
           </select>
         </div>
+        <div class="field"><label>Price (₱, optional)</label><input id="p_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-screenshot">
+    <div class="upload-box" id="screenshotDropZone">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">📋 Paste a screenshot (Ctrl+V) or click to upload an image</div>
+      <div class="hint">Screenshot of a spec sheet, quotation, marketplace listing, whatever — Gemini will read the specs off the image.</div>
+      <input type="file" id="screenshotInput" accept="image/*">
+    </div>
+    <div id="screenshotStatus" class="hint" style="margin-top:8px;"></div>
+    <img id="screenshotPreview" style="display:none;max-width:100%;border:2px solid var(--ink);border-radius:8px;margin-top:10px;">
+    <div class="grid" style="margin-top:14px;">
+      <div class="field"><label>Build / Campaign Name</label><input id="s_name" placeholder="e.g. July Promo Desktop"></div>
+      <div class="field"><label>Target Use Case</label>
+        <select id="s_usecase">
+          <option>Budget Gaming</option>
+          <option>Mid-range Gaming</option>
+          <option>Office / Productivity</option>
+          <option>Content Creation / Editing</option>
+          <option>Streaming</option>
+          <option>General / Family Use</option>
+          <option value="">Not specified — infer from specs</option>
+        </select>
+      </div>
+      <div class="field"><label>Price (₱, optional)</label><input id="s_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
     </div>
   </div>
 
@@ -243,6 +271,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
           <option value="">Not specified — infer from specs</option>
         </select>
       </div>
+      <div class="field"><label>Price (₱, optional)</label><input id="u_price" type="text" inputmode="numeric" placeholder="e.g. 28,500"></div>
     </div>
   </div>
 
@@ -343,6 +372,7 @@ const FIELD_SYNONYMS = {
   psu: ['psu','powersupply','power'],
   case: ['case','chassis','casing'],
   cooler: ['cooler','cpucooler','fan','cooling'],
+  price: ['price','srp','cost','amount','php'],
 };
 const FIELD_LABELS = { cpu:'CPU', mobo:'Motherboard', ram:'RAM', gpu:'GPU', storage:'Storage', psu:'PSU', case:'Case / Airflow', cooler:'CPU Cooler' };
 
@@ -365,19 +395,21 @@ function rowToBuild(row, headerMap, allHeaders, fallbackName){
   const get = f => headerMap[f] ? String(row[headerMap[f]] ?? '').trim() : '';
   const name = get('name') || fallbackName;
   const useCase = get('usecase');
+  const price = get('price');
   const specParts = [];
   Object.keys(FIELD_LABELS).forEach(f=>{
     const v = get(f);
     if(v) specParts.push(FIELD_LABELS[f] + ': ' + v);
   });
   const mappedHeaders = new Set(Object.values(headerMap));
+  if(headerMap.price) mappedHeaders.add(headerMap.price);
   allHeaders.forEach(h=>{
     if(!mappedHeaders.has(h)){
       const v = String(row[h] ?? '').trim();
       if(v) specParts.push(h + ': ' + v);
     }
   });
-  return { name, useCase, specText: specParts.join('\n') };
+  return { name, useCase, price, specText: specParts.join('\n') };
 }
 
 const dropZone = document.getElementById('dropZone');
@@ -420,6 +452,43 @@ fileInput.addEventListener('change', async (e)=>{
   updateRoastButtonLabel();
 });
 
+// Screenshot input (paste or upload an image, sent to Gemini vision)
+let screenshotBase64 = '';
+let screenshotMime = '';
+
+function handleScreenshotFile(file){
+  if(!file || !file.type.startsWith('image/')) return;
+  screenshotMime = file.type;
+  const reader = new FileReader();
+  reader.onload = () => {
+    screenshotBase64 = reader.result; // data URL, worker strips the prefix
+    document.getElementById('screenshotPreview').src = screenshotBase64;
+    document.getElementById('screenshotPreview').style.display = 'block';
+    document.getElementById('screenshotStatus').textContent = '✓ Image loaded — ready to roast';
+  };
+  reader.onerror = () => {
+    document.getElementById('screenshotStatus').textContent = '✗ Could not read that image';
+  };
+  reader.readAsDataURL(file);
+}
+
+const screenshotDropZone = document.getElementById('screenshotDropZone');
+const screenshotInput = document.getElementById('screenshotInput');
+screenshotDropZone.addEventListener('click', ()=> screenshotInput.click());
+screenshotInput.addEventListener('change', (e)=> handleScreenshotFile(e.target.files[0]));
+screenshotDropZone.addEventListener('paste', (e)=>{
+  const item = Array.from(e.clipboardData.items || []).find(i=>i.type.startsWith('image/'));
+  if(item) handleScreenshotFile(item.getAsFile());
+});
+// Also catch a page-level paste while the Screenshot tab is active
+document.addEventListener('paste', (e)=>{
+  const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+  if(activeTab !== 'screenshot') return;
+  const item = Array.from(e.clipboardData.items || []).find(i=>i.type.startsWith('image/'));
+  if(item) handleScreenshotFile(item.getAsFile());
+});
+screenshotDropZone.setAttribute('tabindex','0'); // makes it focusable so paste events land on it too
+
 function updateRoastButtonLabel(){
   const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
   const btn = document.getElementById('roastBtn');
@@ -450,15 +519,17 @@ function buildSpecTextFromManual(){
 function getActiveInput(){
   const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
   if(activeTab==='manual'){
-    return { specText: buildSpecTextFromManual(), name: document.getElementById('m_name').value.trim() || 'Untitled Build', useCase: document.getElementById('m_usecase').value };
+    return { specText: buildSpecTextFromManual(), name: document.getElementById('m_name').value.trim() || 'Untitled Build', useCase: document.getElementById('m_usecase').value, price: document.getElementById('m_price').value.trim() };
   } else if(activeTab==='paste'){
-    return { specText: document.getElementById('p_text').value.trim(), name: document.getElementById('p_name').value.trim() || 'Untitled Build', useCase: document.getElementById('p_usecase').value };
+    return { specText: document.getElementById('p_text').value.trim(), name: document.getElementById('p_name').value.trim() || 'Untitled Build', useCase: document.getElementById('p_usecase').value, price: document.getElementById('p_price').value.trim() };
+  } else if(activeTab==='screenshot'){
+    return { specText: '', name: document.getElementById('s_name').value.trim() || 'Untitled Build', useCase: document.getElementById('s_usecase').value, price: document.getElementById('s_price').value.trim(), imageBase64: screenshotBase64, imageMimeType: screenshotMime };
   } else {
-    return { specText: uploadedSpecText, name: document.getElementById('u_name').value.trim() || 'Untitled Build', useCase: document.getElementById('u_usecase').value };
+    return { specText: uploadedSpecText, name: document.getElementById('u_name').value.trim() || 'Untitled Build', useCase: document.getElementById('u_usecase').value, price: document.getElementById('u_price').value.trim() };
   }
 }
 
-const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','Grabbing the red pen...','Sizing up the PSU headroom...'];
+const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','Grabbing the red pen...','Sizing up the PSU headroom...','Checking real prices online...'];
 
 function buildPrompts(input){
   const langInstruction = currentLang==='taglish'
@@ -467,7 +538,7 @@ function buildPrompts(input){
 
   const systemPrompt = `You are a veteran PC builder reviewing a promotional prebuilt desktop configuration for a real-world content "roast" segment made by EasyPC, a PC hardware retailer in the Philippines.
 
-Your job: evaluate the build PURELY on real-world usage experience for its stated target use case. COMPLETELY IGNORE PRICE — do not mention cost, value-for-money, or budget-friendliness at all. Focus only on: performance bottlenecks (CPU/GPU mismatch), RAM capacity/speed/channel config, storage speed and capacity adequacy, PSU wattage headroom and certification, cooling/airflow adequacy, motherboard feature limitations, and overall real-world experience for someone actually using this machine daily for the stated purpose.
+Your job: evaluate the build on real-world usage experience for its stated target use case — performance bottlenecks (CPU/GPU mismatch), RAM capacity/speed/channel config, storage speed and capacity adequacy, PSU wattage headroom and certification, cooling/airflow adequacy, motherboard feature limitations, and overall real-world experience for someone actually using this machine daily for the stated purpose. Keep price/value discussion OUT of the components, bottleneck_analysis, better_build, and script_hook sections entirely — pricing only ever belongs in the separate price_verdict field, which you'll get specific instructions for separately.
 
 ${langInstruction}
 
@@ -496,10 +567,13 @@ function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
 
 async function fetchRoast(input, attempt=1){
   const { systemPrompt, userPrompt } = buildPrompts(input);
+  const payload = { systemPrompt, userPrompt };
+  if(input.price) payload.price = input.price;
+  if(input.imageBase64){ payload.imageBase64 = input.imageBase64; payload.imageMimeType = input.imageMimeType; }
   const response = await fetch(workerUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ systemPrompt, userPrompt })
+    body: JSON.stringify(payload)
   });
   if(!response.ok){
     const errText = await response.text().catch(()=> '');
@@ -528,8 +602,8 @@ async function roastSingle(){
   const input = getActiveInput();
   const errorBox = document.getElementById('errorBox');
   errorBox.style.display = 'none';
-  if(!input.specText){
-    errorBox.textContent = 'Wala pang specs na na-enter. Fill in the fields, paste, or upload a file muna.';
+  if(!input.specText && !input.imageBase64){
+    errorBox.textContent = 'Wala pang specs na na-enter. Fill in the fields, paste, upload a file, or paste a screenshot muna.';
     errorBox.style.display = 'block';
     return;
   }
@@ -634,6 +708,20 @@ function resultBodyHTML(r){
     });
   }
 
+  if(r.price_verdict && r.price_verdict.verdict && r.price_verdict.verdict !== 'walang presyo na binigay'){
+    const pv = r.price_verdict;
+    const pvClass = pv.verdict === 'sulit' ? 'good' : pv.verdict === 'medyo mahal' ? 'weak' : 'bottleneck';
+    html += `<div class="section-title">Price Check</div>
+    <div class="spec-row" style="border-bottom:none;">
+      <div class="top">
+        <div><span class="label">Asking Price</span><br><span class="val">${escapeHtml(pv.price_given)}</span></div>
+        <span class="badge ${pvClass}">${escapeHtml(pv.verdict)}</span>
+      </div>
+      <div class="roast-note">${escapeHtml(pv.roast)}</div>
+      <div class="why">${escapeHtml(pv.market_comparison)}</div>
+    </div>`;
+  }
+
   if(r.script_hook){
     html += `<div class="hook-box">🎬 "${escapeHtml(r.script_hook)}"</div>`;
   }
@@ -651,6 +739,11 @@ function copyRoastText(r, input){
   if(r.bottleneck_analysis) lines.push('Biggest issue: '+r.bottleneck_analysis);
   lines.push('');
   (r.better_build||[]).forEach(b=> lines.push('Upgrade '+b.component+': '+b.current+' → '+b.suggested+' ('+b.reason+')'));
+  if(r.price_verdict && r.price_verdict.verdict && r.price_verdict.verdict !== 'walang presyo na binigay'){
+    lines.push('');
+    lines.push('Price ('+r.price_verdict.price_given+') — '+r.price_verdict.verdict+': '+r.price_verdict.roast);
+    lines.push(r.price_verdict.market_comparison);
+  }
   lines.push('');
   lines.push('Hook: '+r.script_hook);
   navigator.clipboard.writeText(lines.join('\n'));
