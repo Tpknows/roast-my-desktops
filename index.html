@@ -1003,7 +1003,7 @@ function renderBatchResults(batchResults){
 
 document.getElementById('roastBtn').addEventListener('click', roastBuild);
 
-// History (personal storage)
+// History — shared (Google Sheet, team-wide) when configured, else local to this browser
 async function saveToHistory(result, input){
   try{
     const id = 'roast_'+Date.now();
@@ -1014,6 +1014,48 @@ async function saveToHistory(result, input){
 }
 
 async function loadHistory(){
+  if(sheetsUrl){
+    try{
+      const res = await fetch(sheetsUrl);
+      const data = await res.json();
+      if(data && data.status === 'success' && Array.isArray(data.rows)){
+        renderSheetHistory(data.rows);
+        return;
+      }
+    }catch(e){
+      console.error('Could not load history from Google Sheet, falling back to local', e);
+    }
+  }
+  await loadLocalHistory();
+}
+
+function renderSheetHistory(rows){
+  const list = document.getElementById('historyList');
+  if(!rows.length){
+    list.innerHTML = '<div class="hint">No checks yet — your first one will show up here.</div>';
+    return;
+  }
+  list.innerHTML = '<div class="hint" style="margin-bottom:8px;">⚡ Synced from the shared Google Sheet log — visible to everyone using this tool.</div><div class="batch-list"></div>';
+  const container = list.querySelector('.batch-list');
+  rows.forEach(row=>{
+    const verdict = row['Verdict'] || 'REWORK';
+    const name = row['Build Name'] || 'Untitled Build';
+    const ts = row['Timestamp'] ? new Date(row['Timestamp']) : null;
+    const details = document.createElement('details');
+    details.className = 'batch-item';
+    details.innerHTML = `<summary><span class="stamp-mini ${escapeHtml(verdict)}">${escapeHtml(verdict)}</span> <strong>${escapeHtml(name)}</strong><span class="batch-note">— ${escapeHtml(row['Overall Note']||'')}</span></summary>
+      <div class="batch-body">
+        <div class="why" style="margin-top:8px;">${ts ? escapeHtml(ts.toLocaleString()) : ''}${row['Use Case'] ? ' · ' + escapeHtml(row['Use Case']) : ''}${row['Price'] ? ' · ₱' + escapeHtml(String(row['Price'])) : ''}</div>
+        ${row['Components'] ? `<div class="section-title" style="margin-top:12px;">Components</div><div class="why">${escapeHtml(row['Components'])}</div>` : ''}
+        ${row['Suggested Upgrades'] ? `<div class="section-title">Suggested Upgrades</div><div class="why">${escapeHtml(row['Suggested Upgrades'])}</div>` : ''}
+        ${row['Price Verdict'] && row['Price Verdict'] !== 'walang presyo na binigay' ? `<div class="section-title">Price Check</div><div class="why">${escapeHtml(row['Price Verdict'])} — ${escapeHtml(row['Price Notes']||'')}</div>` : ''}
+        ${row['Summary Hook'] ? `<div class="hook-box" style="margin-top:14px;">🎬 "${escapeHtml(row['Summary Hook'])}"</div>` : ''}
+      </div>`;
+    container.appendChild(details);
+  });
+}
+
+async function loadLocalHistory(){
   const list = document.getElementById('historyList');
   try{
     const keys = await window.storage.list('roast_');
@@ -1042,13 +1084,14 @@ async function loadHistory(){
       div.querySelector('.del-btn').addEventListener('click', async (e)=>{
         e.stopPropagation();
         await window.storage.delete(entry.id);
-        loadHistory();
+        loadLocalHistory();
       });
       list.appendChild(div);
     });
   }catch(e){
     list.innerHTML = '<div class="hint">No checks yet — your first one will show up here.</div>';
   }
+}
 }
 loadHistory();
 </script>
