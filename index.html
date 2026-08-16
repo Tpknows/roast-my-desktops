@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPEC ROAST — EasyPC Build Reviewer</title>
+<title>BUILD CHECKER — EasyPC Build Reviewer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Caveat:wght@500;600;700&family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -148,8 +148,8 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 
   <div class="masthead">
     <div>
-      <h1>SPEC<span>ROAST</span></h1>
-      <div class="tag">EasyPC Monthly Build Reviewer</div>
+      <h1>BUILD<span>CHECKER</span></h1>
+      <div class="tag">EasyPC Build Quality Review</div>
     </div>
     <div style="text-align:right;">
       <div class="issue" id="dateStamp"></div>
@@ -159,18 +159,19 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 
   <div class="sheet" id="settingsPanel" style="display:none;margin-bottom:18px;">
     <div class="field">
-      <label>Worker Endpoint URL (ChatGPT proxy)</label>
+      <label>Worker Endpoint URL (Groq proxy)</label>
       <input id="workerUrlInput" placeholder="https://your-worker.your-subdomain.workers.dev">
     </div>
-    <div class="hint">Paste this in once your Cloudflare Worker is deployed. Saved locally in this tool, not shared.</div>
+    <div class="hint">Pre-filled with your deployed Worker by default. Change only if you redeploy to a different URL. Saved locally in this tool, not shared.</div>
     <div class="action-row">
       <button class="ghost-btn" id="saveWorkerUrlBtn">Save</button>
+      <button class="ghost-btn" id="resetWorkerUrlBtn">Reset to Default</button>
     </div>
     <div class="field" style="margin-top:14px;">
       <label>Google Sheet Log URL (Apps Script Web App, optional)</label>
       <input id="sheetsUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
     </div>
-    <div class="hint">Kung naka-set ito, every roast gets logged as a new row in your Google Sheet automatically — permanent record, separate sa local history.</div>
+    <div class="hint">Kung naka-set ito, every check gets logged as a new row in your Google Sheet automatically — permanent record, separate sa local history.</div>
     <div class="action-row">
       <button class="ghost-btn" id="saveSheetsUrlBtn">Save</button>
     </div>
@@ -237,7 +238,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
   <div class="panel" id="panel-screenshot">
     <div class="upload-box" id="screenshotDropZone">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:0.85rem;">📋 Paste a screenshot (Ctrl+V) or click to upload an image</div>
-      <div class="hint">Screenshot of a spec sheet, quotation, marketplace listing, whatever — ChatGPT will read the specs off the image.</div>
+      <div class="hint">Screenshot of a spec sheet, quotation, marketplace listing, whatever — the AI will read the specs off the image.</div>
       <input type="file" id="screenshotInput" accept="image/*">
     </div>
     <div id="screenshotStatus" class="hint" style="margin-top:8px;"></div>
@@ -289,7 +290,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
       <button class="active" data-lang="taglish">Taglish</button>
       <button data-lang="english">English</button>
     </div>
-    <button class="roast-btn" id="roastBtn">🔥 Roast This Build</button>
+    <button class="roast-btn" id="roastBtn">Run Build Checker</button>
   </div>
 
   <div class="loading" id="loadingRow"><div class="spinner"></div><span id="loadingText">Reading the spec sheet...</span></div>
@@ -298,13 +299,19 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
   <div id="results"></div>
 
   <div class="history-wrap">
-    <div class="section-title">Past Roasts</div>
+    <div class="section-title">Past Checks</div>
     <div id="historyList"></div>
   </div>
 
 </div>
 
 <script>
+// Default Worker endpoint — pre-filled automatically on first load in any
+// browser/device, so Settings doesn't need to be configured manually. The
+// Worker itself still holds the real GROQ_API_KEY server-side as a secret;
+// only this public URL lives here, which is safe to embed.
+const DEFAULT_WORKER_URL = 'https://specroast-gemini.tammy-padal.workers.dev/';
+
 const dateStampEl = document.getElementById('dateStamp');
 dateStampEl.textContent = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
 
@@ -320,30 +327,50 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 // Settings / Worker URL
-let workerUrl = '';
+let workerUrl = DEFAULT_WORKER_URL;
 const settingsPanel = document.getElementById('settingsPanel');
 document.getElementById('settingsBtn').addEventListener('click', ()=>{
   settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
 });
 document.getElementById('saveWorkerUrlBtn').addEventListener('click', async ()=>{
   const val = document.getElementById('workerUrlInput').value.trim();
-  workerUrl = val;
+  workerUrl = val || DEFAULT_WORKER_URL;
   try{
-    await window.storage.set('config:workerUrl', val);
+    await window.storage.set('config:workerUrl', workerUrl);
     const btn = document.getElementById('saveWorkerUrlBtn');
     const old = btn.textContent;
     btn.textContent = 'Saved ✓';
     setTimeout(()=>btn.textContent = old, 1500);
   }catch(e){ console.error('could not save worker url', e); }
 });
+document.getElementById('resetWorkerUrlBtn').addEventListener('click', async ()=>{
+  workerUrl = DEFAULT_WORKER_URL;
+  document.getElementById('workerUrlInput').value = DEFAULT_WORKER_URL;
+  try{
+    await window.storage.set('config:workerUrl', DEFAULT_WORKER_URL);
+    const btn = document.getElementById('resetWorkerUrlBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Reset ✓';
+    setTimeout(()=>btn.textContent = old, 1500);
+  }catch(e){ console.error('could not reset worker url', e); }
+});
 async function loadWorkerUrl(){
   try{
     const res = await window.storage.get('config:workerUrl');
     if(res && res.value){
       workerUrl = res.value;
-      document.getElementById('workerUrlInput').value = workerUrl;
+    } else {
+      // First time on this account/device — seed storage with the default
+      // so it's consistent everywhere, and shows up in the Settings field.
+      workerUrl = DEFAULT_WORKER_URL;
+      try{ await window.storage.set('config:workerUrl', DEFAULT_WORKER_URL); }catch(e){}
     }
-  }catch(e){ /* not set yet */ }
+  }catch(e){
+    // Storage not available for some reason — still fall back to default
+    // so the tool works out of the box.
+    workerUrl = DEFAULT_WORKER_URL;
+  }
+  document.getElementById('workerUrlInput').value = workerUrl;
 }
 loadWorkerUrl();
 
@@ -514,7 +541,7 @@ fileInput.addEventListener('change', async (e)=>{
   updateRoastButtonLabel();
 });
 
-// Screenshot input (paste or upload an image, sent to ChatGPT vision)
+// Screenshot input (paste or upload an image, sent to vision model)
 let screenshotBase64 = '';
 let screenshotMime = '';
 
@@ -526,7 +553,7 @@ function handleScreenshotFile(file){
     screenshotBase64 = reader.result; // data URL, worker strips the prefix
     document.getElementById('screenshotPreview').src = screenshotBase64;
     document.getElementById('screenshotPreview').style.display = 'block';
-    document.getElementById('screenshotStatus').textContent = '✓ Image loaded — ready to roast';
+    document.getElementById('screenshotStatus').textContent = '✓ Image loaded — ready to check';
   };
   reader.onerror = () => {
     document.getElementById('screenshotStatus').textContent = '✗ Could not read that image';
@@ -555,9 +582,9 @@ function updateRoastButtonLabel(){
   const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
   const btn = document.getElementById('roastBtn');
   if(activeTab === 'upload' && batchBuilds && batchBuilds.length > 1){
-    btn.textContent = '🔥 Roast All ' + batchBuilds.length + ' Builds';
+    btn.textContent = 'Run Check on All ' + batchBuilds.length + ' Builds';
   } else {
-    btn.textContent = '🔥 Roast This Build';
+    btn.textContent = 'Run Build Checker';
   }
 }
 
@@ -591,14 +618,14 @@ function getActiveInput(){
   }
 }
 
-const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','Grabbing the red pen...','Sizing up the PSU headroom...','Checking real prices online...'];
+const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','Reviewing component compatibility...','Assessing PSU headroom...','Checking current market prices...'];
 
 function buildPrompts(input){
   const langInstruction = currentLang==='taglish'
-    ? 'Write all roast lines, the overall note, and the hook in natural Taglish (Filipino-English code-switching), the way a witty EasyPC content creator would talk to a Filipino TikTok audience. Keep "why" explanations in clear English or light Taglish, whichever reads more naturally.'
-    : 'Write all text in English, witty and punchy, suitable for a tech content creator.';
+    ? 'Write all assessment lines, the overall note, and the summary hook in professional Taglish (Filipino-English code-switching), the way a senior PC hardware technician would brief a colleague or write for an official EasyPC review — direct, confident, and precise, but professional in tone. No insults, no exaggerated jokes; the writing should read as an expert technical assessment, not comedy. Keep "why" explanations in clear English or light Taglish, whichever reads more naturally.'
+    : 'Write all text in English, in a direct, confident, professional tone suitable for an official technical review — precise and expert, not comedic.';
 
-  const systemPrompt = `You are a veteran PC builder reviewing a promotional prebuilt desktop configuration for a real-world content "roast" segment made by EasyPC, a PC hardware retailer in the Philippines.
+  const systemPrompt = `You are a senior PC hardware technician conducting an official build quality review for EasyPC, a PC hardware retailer in the Philippines. This review may be used as internal QA documentation or as professional content for EasyPC's channels.
 
 Your job: evaluate the build on real-world usage experience for its stated target use case — performance bottlenecks (CPU/GPU mismatch), RAM capacity/speed/channel config, storage speed and capacity adequacy, PSU wattage headroom and certification, cooling/airflow adequacy, motherboard feature limitations, and overall real-world experience for someone actually using this machine daily for the stated purpose. Keep price/value discussion OUT of the components, bottleneck_analysis, better_build, and script_hook sections entirely — pricing only ever belongs in the separate price_verdict field, which you'll get specific instructions for separately.
 
@@ -607,15 +634,15 @@ ${langInstruction}
 Respond with ONLY valid JSON (no markdown fences, no preamble), matching exactly this shape:
 {
   "overall_verdict": "PASS" | "REWORK" | "FAIL",
-  "overall_note": "one punchy sentence, in the roast voice",
+  "overall_note": "one clear, professional sentence summarizing the verdict",
   "components": [
-    { "name": "CPU", "input": "the value as given, or 'not specified'", "grade": "good" | "weak" | "bottleneck" | "overkill", "roast": "short punchy red-pen style annotation, max ~14 words", "why": "1-2 sentence real-world explanation, no price talk" }
+    { "name": "CPU", "input": "the value as given, or 'not specified'", "grade": "good" | "weak" | "bottleneck" | "overkill", "roast": "concise expert assessment, max ~14 words, direct and professional", "why": "1-2 sentence real-world explanation, no price talk" }
   ],
   "bottleneck_analysis": "one short paragraph identifying the single biggest real-world mismatch or risk in this build, or confirming there isn't one",
   "better_build": [
     { "component": "GPU", "current": "value given", "suggested": "better alternative component, spec-only reasoning", "reason": "1 sentence why, no price talk" }
   ],
-  "script_hook": "one punchy short-form video hook line summarizing the verdict, camera-ready for TikTok/Reels"
+  "script_hook": "one clear, professional one-line summary of the verdict, suitable as a headline for a written report or short-form video caption"
 }
 
 Keep every "why" and "reason" field to 1 short sentence, max ~20 words — this keeps the review scannable. Include an entry in "components" for every component actually provided (skip ones not given). Include entries in "better_build" only for components that actually need upgrading — if a component is already good for the use case, leave it out of better_build. If overall_verdict is PASS, better_build can be a short list of minor polish suggestions or empty array.`;
@@ -667,13 +694,13 @@ async function fetchRoast(input, attempt=1){
   if(!response.ok){
     const errText = await response.text().catch(()=> '');
     if(response.status === 429 && attempt < 3){
-      await sleep(attempt === 1 ? 15000 : 45000); // RPM limits reset within ~60s; RPD limits won't, but this covers the common case
+      await sleep(attempt === 1 ? 15000 : 45000); // rate limits typically reset within ~60s
       return fetchRoast(input, attempt+1);
     }
     if(response.status === 429){
-      throw new Error('OpenAI rate limit exceeded (429). Ito ay limitasyon ng OpenAI API key mo, hindi bug ng tool — check https://platform.openai.com/settings/organization/limits para makita yung RPM/TPM/RPD limits mo. Kung madalas mag-429, pwedeng mag-add ng payment method / tumaas ang usage tier sa https://platform.openai.com/settings/organization/billing para tumaas ang limits.');
+      throw new Error('Groq rate limit exceeded (429). Ito ay limitasyon ng Groq API key mo, hindi bug ng tool — check https://console.groq.com/settings/limits para makita yung RPM/TPM/RPD limits mo.');
     }
-    throw new Error('Worker returned ' + response.status + (errText ? ': ' + errText.slice(0,150) : ''));
+    throw new Error('Worker returned ' + response.status + (errText ? ': ' + errText.slice(0,400) : ''));
   }
   const data = await response.json();
   if(!data.text) throw new Error('No response text from Worker');
@@ -733,7 +760,7 @@ async function roastSingle(){
     await saveToHistory(parsed, input);
     await logToSheet(parsed, input, fromCache);
   }catch(err){
-    errorBox.textContent = 'Roast failed: ' + err.message + '. Try again.';
+    errorBox.textContent = 'Build check failed: ' + err.message + '. Try again.';
     errorBox.style.display = 'block';
   }finally{
     clearInterval(msgInterval);
@@ -760,7 +787,7 @@ async function roastBatch(){
   const batchResults = [];
   for(let i=0; i<batchBuilds.length; i++){
     const build = batchBuilds[i];
-    document.getElementById('loadingText').textContent = `Roasting ${i+1}/${batchBuilds.length}: ${build.name}...`;
+    document.getElementById('loadingText').textContent = `Checking ${i+1}/${batchBuilds.length}: ${build.name}...`;
     let wasCached = false;
     try{
       const { parsed, detectedPrice, fromCache } = await fetchRoast(build);
@@ -772,7 +799,10 @@ async function roastBatch(){
     }catch(err){
       batchResults.push({ input: build, error: err.message });
     }
-    if(i < batchBuilds.length - 1 && !wasCached) await sleep(4500); // stay under free-tier rate limits; cached hits made no API call so no need to throttle
+    // Groq free tier is tight on tokens-per-minute (TPM) — space out
+    // consecutive live calls generously so a batch run doesn't trip it.
+    // Cached hits made no API call, so no need to throttle after those.
+    if(i < batchBuilds.length - 1 && !wasCached) await sleep(18000);
   }
 
   loadingRow.style.display = 'none';
@@ -867,15 +897,15 @@ function renderResults(r, input, fromCache){
     <div class="overall-note">"${escapeHtml(r.overall_note||'')}"</div>
   </div>`;
   if(fromCache){
-    html += `<div class="hint" style="margin-bottom:10px;">⚡ Cached result — parehong build na na-roast na dati, kaya walang bagong API call na ginawa.</div>`;
+    html += `<div class="hint" style="margin-bottom:10px;">⚡ Cached result — parehong build na na-check na dati, kaya walang bagong API call na ginawa.</div>`;
   }
   html += `<div style="margin-bottom:10px;"><button class="ghost-btn" id="compactToggleBtn" style="font-size:0.68rem;padding:5px 10px;">Compact View</button></div>`;
 
   html += resultBodyHTML(r);
 
   html += `<div class="action-row">
-    <button class="ghost-btn" id="copyBtn">Copy Roast Script</button>
-    <button class="ghost-btn" id="newRoastBtn">New Roast</button>
+    <button class="ghost-btn" id="copyBtn">Copy Report</button>
+    <button class="ghost-btn" id="newRoastBtn">New Check</button>
   </div>`;
 
   results.innerHTML = html;
@@ -908,7 +938,7 @@ function renderBatchResults(batchResults){
   const passCount = batchResults.filter(e=>!e.error && e.result.overall_verdict==='PASS').length;
   const failCount = batchResults.filter(e=>e.error || e.result.overall_verdict==='FAIL').length;
 
-  let html = `<div class="section-title">Batch Roast — ${batchResults.length} Builds</div>
+  let html = `<div class="section-title">Batch Build Checker — ${batchResults.length} Builds</div>
   <div class="hint" style="margin-bottom:12px;">${passCount} ready to ship, ${batchResults.length - passCount - failCount} need rework, ${failCount} failed or flagged.</div>
   <div class="batch-list">`;
 
@@ -924,13 +954,13 @@ function renderBatchResults(batchResults){
       html += `<details class="batch-item">
         <summary><span class="stamp-mini ${escapeHtml(verdict)}">${escapeHtml(verdict)}</span> <strong>${escapeHtml(entry.input.name)}</strong>${entry.fromCache ? ' <span class="hint">⚡ cached</span>' : ''}<span class="batch-note">— ${escapeHtml(r.overall_note||'')}</span></summary>
         <div class="batch-body">${resultBodyHTML(r)}
-          <div class="action-row"><button class="ghost-btn batch-copy-btn" data-idx="${i}">Copy Roast Script</button></div>
+          <div class="action-row"><button class="ghost-btn batch-copy-btn" data-idx="${i}">Copy Report</button></div>
         </div>
       </details>`;
     }
   });
 
-  html += `</div><div class="action-row" style="margin-top:16px;"><button class="ghost-btn" id="newRoastBtn">New Roast</button></div>`;
+  html += `</div><div class="action-row" style="margin-top:16px;"><button class="ghost-btn" id="newRoastBtn">New Check</button></div>`;
 
   results.innerHTML = html;
   results.style.display = 'block';
@@ -969,7 +999,7 @@ async function loadHistory(){
   try{
     const keys = await window.storage.list('roast_');
     if(!keys || !keys.keys || !keys.keys.length){
-      list.innerHTML = '<div class="hint">No roasts yet — your first one will show up here.</div>';
+      list.innerHTML = '<div class="hint">No checks yet — your first one will show up here.</div>';
       return;
     }
     const entries = [];
@@ -998,7 +1028,7 @@ async function loadHistory(){
       list.appendChild(div);
     });
   }catch(e){
-    list.innerHTML = '<div class="hint">No roasts yet — your first one will show up here.</div>';
+    list.innerHTML = '<div class="hint">No checks yet — your first one will show up here.</div>';
   }
 }
 loadHistory();
