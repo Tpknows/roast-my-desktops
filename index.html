@@ -174,6 +174,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
     <div class="hint">Kung naka-set ito, every check gets logged as a new row in your Google Sheet automatically — permanent record, separate sa local history.</div>
     <div class="action-row">
       <button class="ghost-btn" id="saveSheetsUrlBtn">Save</button>
+      <button class="ghost-btn" id="resetSheetsUrlBtn">Reset to Default</button>
     </div>
   </div>
 
@@ -311,6 +312,7 @@ html,body{margin:0;padding:0;background:transparent;color:var(--ink);font-family
 // Worker itself still holds the real GROQ_API_KEY server-side as a secret;
 // only this public URL lives here, which is safe to embed.
 const DEFAULT_WORKER_URL = 'https://specroast-gemini.tammy-padal.workers.dev/';
+const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbybomUwDlPamxp239fcPr0Xcw5bs-mSRkc9EGd9Oym2qCfeTYLWF5sySpuptIkE2u_u/exec';
 
 const dateStampEl = document.getElementById('dateStamp');
 dateStampEl.textContent = new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
@@ -375,12 +377,12 @@ async function loadWorkerUrl(){
 loadWorkerUrl();
 
 // Settings / Google Sheet log URL
-let sheetsUrl = '';
+let sheetsUrl = DEFAULT_SHEETS_URL;
 document.getElementById('saveSheetsUrlBtn').addEventListener('click', async ()=>{
   const val = document.getElementById('sheetsUrlInput').value.trim();
-  sheetsUrl = val;
+  sheetsUrl = val || DEFAULT_SHEETS_URL;
   try{
-    await window.storage.set('config:sheetsUrl', val);
+    await window.storage.set('config:sheetsUrl', sheetsUrl);
     const btn = document.getElementById('saveSheetsUrlBtn');
     const old = btn.textContent;
     btn.textContent = 'Saved ✓';
@@ -392,11 +394,28 @@ async function loadSheetsUrl(){
     const res = await window.storage.get('config:sheetsUrl');
     if(res && res.value){
       sheetsUrl = res.value;
-      document.getElementById('sheetsUrlInput').value = sheetsUrl;
+    } else {
+      sheetsUrl = DEFAULT_SHEETS_URL;
+      try{ await window.storage.set('config:sheetsUrl', DEFAULT_SHEETS_URL); }catch(e){}
     }
-  }catch(e){ /* not set yet */ }
+  }catch(e){
+    sheetsUrl = DEFAULT_SHEETS_URL;
+  }
+  document.getElementById('sheetsUrlInput').value = sheetsUrl;
 }
 loadSheetsUrl();
+
+document.getElementById('resetSheetsUrlBtn').addEventListener('click', async ()=>{
+  sheetsUrl = DEFAULT_SHEETS_URL;
+  document.getElementById('sheetsUrlInput').value = DEFAULT_SHEETS_URL;
+  try{
+    await window.storage.set('config:sheetsUrl', DEFAULT_SHEETS_URL);
+    const btn = document.getElementById('resetSheetsUrlBtn');
+    const old = btn.textContent;
+    btn.textContent = 'Reset ✓';
+    setTimeout(()=>btn.textContent = old, 1500);
+  }catch(e){ console.error('could not reset sheets url', e); }
+});
 
 // Logs a completed roast as a new row in the user's Google Sheet, via an
 // Apps Script Web App the user deploys themselves (see setup doc). Fire-
