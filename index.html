@@ -641,14 +641,7 @@ const loadingMsgs = ['Reading the spec sheet...','Checking for bottlenecks...','
 
 function buildPrompts(input){
   const langInstruction = currentLang==='taglish'
-    ? `Write all assessment lines, the overall note, and the summary hook in natural Taglish (Filipino-English code-switching) — the way a senior Filipino PC hardware technician actually talks when briefing a colleague. This is a hard requirement, not a style suggestion: do NOT default to pure English even though it may feel more natural to you. Mix Filipino and English within sentences the way real Taglish speakers do, not just isolated Filipino words dropped into English sentences.
-
-Examples of the exact register to match:
-- "Sapat naman ang RAM na ito pero medyo mabagal, dahil single-channel lang — mararamdaman 'yan sa multitasking."
-- "Malaking bottleneck itong GPU kasi hindi kayang tapatan ng CPU, sayang lang ang extra performance."
-- "Solid choice ang PSU na 'to — may certification at sapat ang headroom para sa buong build."
-
-Keep "why" explanations in the same natural Taglish register, not plain English. Professional pa rin ang tono — walang insulto o sobrang biro, pero dapat talagang Taglish, hindi English na may konting Filipino salita lang.`
+    ? 'Write all assessment lines, the overall note, and the summary hook in professional Taglish (Filipino-English code-switching), the way a senior PC hardware technician would brief a colleague or write for an official EasyPC review — direct, confident, and precise, but professional in tone. No insults, no exaggerated jokes; the writing should read as an expert technical assessment, not comedy. Keep "why" explanations in clear English or light Taglish, whichever reads more naturally.'
     : 'Write all text in English, in a direct, confident, professional tone suitable for an official technical review — precise and expert, not comedic.';
 
   const systemPrompt = `You are a senior PC hardware technician conducting an official build quality review for EasyPC, a PC hardware retailer in the Philippines. This review may be used as internal QA documentation or as professional content for EasyPC's channels.
